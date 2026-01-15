@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  /* Dark Athletic Theme */
+  --font-display: 'Oswald', sans-serif;
+  --font-body: 'Roboto Flex', sans-serif;
+
+  --background: 220 15% 10%;
+  --foreground: 210 20% 98%;
+
+  --card: 220 15% 13%;
+  --card-foreground: 210 20% 98%;
+
+  --popover: 220 15% 13%;
+  --popover-foreground: 210 20% 98%;
+
+  --primary: 199 89% 48%; /* Energetic Blue */
+  --primary-foreground: 0 0% 100%;
+
+  --secondary: 220 15% 18%;
+  --secondary-foreground: 210 20% 98%;
+
+  --muted: 217 19% 20%;
+  --muted-foreground: 215 20% 65%;
+
+  --accent: 199 89% 48%;
+  --accent-foreground: 0 0% 100%;
+
+  --destructive: 0 62% 30%;
+  --destructive-foreground: 210 20% 98%;
+
+  --border: 217 19% 20%;
+  --input: 217 19% 20%;
+  --ring: 199 89% 48%;
+
+  --radius: 0.5rem;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased font-body;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display tracking-tight uppercase;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-background;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-primary/50;
+}
+
+/* Form inputs overrides for "Athletic Dark" feel */
+input, textarea, select {
+  @apply bg-secondary/50 border-transparent focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all duration-200;
+}

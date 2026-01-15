@@ -1,0 +1,81 @@
+Great start but the app currently feels empty and bare.
+Enhance the product with the following UX and feature improvements, while keeping the existing stack and architecture:
+1) Athlete dashboard experience
+Create a rich athlete dashboard at /athlete/dashboard that becomes the default landing page for athletes after login.
+Features and layout:
+Top section (hero card):
+Welcome message with athlete’s name and small avatar.
+Quick summary: current phase (off‑season / prep / peak week / post‑show), next show name and date if available.
+A primary CTA button: “Submit Weekly Check‑In”.
+Main content area, in a responsive two‑column layout on desktop and single column on mobile:
+Card: “This Week’s Overview”
+Show last check‑in date, weight, and a simple trend indicator (e.g., “Down 0.8 kg vs last week”).
+Status pill like “On track” or “Needs check‑in”.
+Card: “Workout Plan”
+Placeholder (for now) that lists the current training split for the week (just static data or a simple text field if no structured schema exists yet).
+Button/link: “View full workout plan”.
+Card: “Meal Plan”
+Similar placeholder card showing current macros or a simple list of meals with macros.
+Button/link: “View full meal plan”.
+Card: “Coach Notes”
+Show the latest coach feedback from the most recent check‑in, or a placeholder message if none exists.
+Design notes:
+Use a consistent app shell: app bar with logo/name, profile menu, and a sidebar on desktop (see below).
+Use the existing color palette and typography.
+Use cards with rounded corners and light shadows to make the dashboard feel alive.
+2) Navigation & layout (sidebar + mobile)
+Introduce a responsive navigation layout:
+On desktop:
+Left sidebar with navigation items (icons + labels): Dashboard, Check‑In, History, Workout Plan, Meal Plan, Settings/Profile.
+The sidebar should be collapsible (icon‑only vs expanded), but it’s okay if that’s a later enhancement.
+On mobile:
+No fixed sidebar; instead use either:
+A top “hamburger” menu that opens a slide‑in drawer with the same nav items, or
+A bottom tab bar with key sections: Dashboard, Check‑In, History, Profile.
+You can create a shared layout component for athletes (e.g., app/(athlete)/layout.tsx) that renders the sidebar/nav and wraps athlete pages.
+3) Workout and meal plan views (stubbed but real UI)
+Even if the backend schema for workout plans and meal plans is minimal or not yet fully defined, create initial pages and components:
+app/athlete/workout-plan
+Show the current week’s split as a simple table or list (Day → Muscle groups → Notes).
+If there is no real data yet, read from a simple placeholder structure or mock data with the intention to wire it up later.
+Add space for future expansion: sets, reps, RPE, etc.
+app/athlete/meal-plan
+Show either macros per day (e.g., protein, carbs, fats, calories) and/or a simple list of meals.
+Again, this can be based on a simple schema or mocked data for now, but the UI should look finished.
+The goal is to make it feel like a real coaching platform, even if some data is still hard‑coded.
+4) Photo / camera support for weekly check‑ins
+Extend the athlete check‑in flow to support photos:
+On the check‑in page, add a dedicated “Check‑In Photos” section.
+Allow the athlete to:
+Upload one or more photos (e.g., front, side, back) via file input.
+On mobile, allow using the device camera where supported (e.g., set accept="image/*" and capture="environment" or similar best practices).
+For now, you can store uploaded images in Supabase storage and save their URLs in the check_ins table (extend the schema to handle multiple photos sensibly: either a separate check_in_photos table or a JSON array column like photo_urls).
+Add a simple gallery view for photos:
+In the check‑in detail view (/athletes/[athleteId]/check-ins/[checkInId] or athlete history), show small thumbnails of the uploaded photos.
+Clicking a thumbnail should open a larger preview (modal/lightbox).
+5) Profile picture and basic profile settings
+Add a profile settings page where both coaches and athletes can manage basic personal details:
+Create app/settings/profile or app/(account)/settings/profile.
+Fields: display name, optional bio, time zone, and profile picture.
+Allow upload of a profile picture:
+Store in Supabase storage with a URL reference in the profiles table.
+Show the avatar in the app bar / sidebar and on the dashboard hero card.
+The UI should include:
+Avatar component that shows either the uploaded image or initials if no image exists.
+Clean form with clear labels and a primary “Save changes” button.
+6) General polish & “not naked” feel
+In general, add the following to make the app feel complete:
+Skeleton loaders or simple loading states for dashboard and data‑heavy pages.
+Empty states for when there is no data yet (e.g., “You don’t have a workout plan yet. Your coach will add one soon.”).
+Consistent use of cards, section headings, and spacing across all new pages.
+Implementation guidance
+Keep using Javascript and the current design system (fonts, colors, button/card styles).
+Prefer server components for data loading, but use client components where necessary (forms, camera access, interactions).
+Reuse and extend existing components instead of creating completely separate ones where possible.
+Clearly label any new files and components you add, and ensure navigation is wired up (links in sidebar/mobile nav).
+Start by:
+Updating the layout/navigation for the athlete experience.
+Implementing the athlete dashboard with the sections described.
+Adding the check‑in photo/camera support and profile settings page.
+Then we can iterate further on workout/meal plan data and coach‑side UX.
+
