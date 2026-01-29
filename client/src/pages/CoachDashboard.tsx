@@ -12,6 +12,7 @@ import { format, endOfWeek, isWithinInterval, startOfWeek } from "date-fns";
 import { Redirect, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api, type TrainingCompletion } from "@shared/routes";
+import LayoutCoach from "@/components/LayoutCoach";
 
 export default function CoachDashboard() {
   const { user, logout } = useAuth();
@@ -38,7 +39,9 @@ export default function CoachDashboard() {
     },
     enabled: !!user,
   });
-  
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filter, setFilter] = useState<'all' | 'needs-attention' | 'on-track'>('all');
   const [newAthleteName, setNewAthleteName] = useState("");
   const [newAthletePass, setNewAthletePass] = useState("");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,115 +61,152 @@ export default function CoachDashboard() {
 
   const weekStart = startOfWeek(new Date(), { weekStartsOn: 1 });
   const weekEnd = endOfWeek(new Date(), { weekStartsOn: 1 });
+
   const athletesWithCheckin = new Set(
     (coachCheckins || []).filter((checkin) =>
       isWithinInterval(new Date(checkin.date), { start: weekStart, end: weekEnd })
     ).map((checkin) => checkin.athleteId)
   );
+
+  const filteredAthletes = athletes?.filter(athlete => {
+    const matchesSearch = athlete.username.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      athlete.displayName?.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const hasCheckin = athletesWithCheckin.has(athlete.id);
+    if (filter === 'needs-attention') return matchesSearch && !hasCheckin;
+    if (filter === 'on-track') return matchesSearch && hasCheckin;
+    return matchesSearch;
+  });
+
   const pendingCheckins = Math.max((athletes?.length || 0) - athletesWithCheckin.size, 0);
 
   return (
-    <div className="min-h-screen bg-background pb-16 sm:pb-20">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex flex-col gap-3 sm:flex-row sm:justify-between sm:items-center">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center font-display font-bold text-lg text-primary-foreground">
-              {user.username.substring(0,2).toUpperCase()}
-            </div>
-            <div>
-              <h1 className="text-xl font-display uppercase tracking-wide">Coach Dashboard</h1>
-              <p className="text-xs text-muted-foreground font-medium">Manage Roster</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2 w-full sm:w-auto">
-            <Button variant="outline" size="sm" onClick={() => setLocation("/dashboard/checkins")}>
-              Check-ins
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => logout()} className="text-muted-foreground hover:text-destructive">
-              <LogOut className="w-5 h-5" />
-            </Button>
-          </div>
+    <LayoutCoach>
+      <div className="space-y-8">
+        <div className="hidden md:flex items-center justify-between">
+          <h1 className="text-2xl font-display uppercase tracking-wide">Coach Dashboard</h1>
         </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8">
         {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          <Card className="bg-secondary/20 border-border">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="bg-secondary/10 border-border/50 backdrop-blur-sm">
             <CardContent className="p-6">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Total Athletes</p>
-              <p className="text-3xl font-display font-bold mt-2">{athletes?.length || 0}</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Total Roster</p>
+              <div className="flex items-end gap-2 mt-2">
+                <p className="text-4xl font-display font-bold leading-none">{athletes?.length || 0}</p>
+                <p className="text-xs text-muted-foreground mb-1">Athletes</p>
+              </div>
             </CardContent>
           </Card>
-          <Card className="bg-secondary/20 border-border">
+          <Card className="bg-orange-500/5 border-orange-500/20 backdrop-blur-sm">
             <CardContent className="p-6">
-              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Pending Check-ins</p>
-              <p className="text-3xl font-display font-bold mt-2 text-orange-500">{pendingCheckins}</p>
+              <p className="text-[10px] font-bold text-orange-500/80 uppercase tracking-[0.2em]">Attention Required</p>
+              <div className="flex items-end gap-2 mt-2">
+                <p className="text-4xl font-display font-bold leading-none text-orange-500">{pendingCheckins}</p>
+                <p className="text-xs text-orange-500/60 mb-1">Pending Check-ins</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="bg-emerald-500/5 border-emerald-500/20 backdrop-blur-sm">
+            <CardContent className="p-6">
+              <p className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-[0.2em]">Weekly Compliance</p>
+              <div className="flex items-end gap-2 mt-2">
+                <p className="text-4xl font-display font-bold leading-none text-emerald-500">
+                  {athletes?.length ? Math.round((athletesWithCheckin.size / athletes.length) * 100) : 0}%
+                </p>
+                <p className="text-xs text-emerald-500/60 mb-1">Checked In</p>
+              </div>
             </CardContent>
           </Card>
         </div>
 
         {/* Roster Section */}
         <div className="space-y-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h2 className="text-2xl font-display uppercase tracking-wide flex items-center gap-2">
               <Users className="w-6 h-6 text-primary" />
               Active Roster
             </h2>
-            
-            <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-              <DialogTrigger asChild>
-                <Button className="font-bold uppercase tracking-wider bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
-                  <Plus className="w-4 h-4 mr-2" />
-                  Add Athlete
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="bg-card border-border">
-                <DialogHeader>
-                  <DialogTitle className="font-display uppercase tracking-wide">Add New Athlete</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreateAthlete} className="space-y-4 mt-4">
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-muted-foreground">Username</label>
-                    <Input value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} className="bg-secondary/50" />
-                  </div>
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase text-muted-foreground">Temporary Password</label>
-                    <Input type="password" value={newAthletePass} onChange={e => setNewAthletePass(e.target.value)} className="bg-secondary/50" />
-                  </div>
-                  <Button type="submit" className="w-full font-bold uppercase tracking-wider bg-primary">Create Profile</Button>
-                </form>
-              </DialogContent>
-            </Dialog>
+
+            <div className="flex items-center gap-2 w-full md:w-auto">
+              <div className="flex bg-secondary/20 p-1 rounded-lg border border-border/50">
+                <button
+                  onClick={() => setFilter('all')}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${filter === 'all' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  All
+                </button>
+                <button
+                  onClick={() => setFilter('needs-attention')}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${filter === 'needs-attention' ? 'bg-background text-orange-500 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  Pending
+                </button>
+                <button
+                  onClick={() => setFilter('on-track')}
+                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${filter === 'on-track' ? 'bg-background text-emerald-500 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                >
+                  On Track
+                </button>
+              </div>
+
+              <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button className="font-bold uppercase tracking-wider bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20 ml-auto md:ml-0">
+                    <Plus className="w-4 h-4 mr-2" />
+                    New Athlete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="bg-card border-border">
+                  <DialogHeader>
+                    <DialogTitle className="font-display uppercase tracking-wide">Add New Athlete</DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleCreateAthlete} className="space-y-4 mt-4">
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-muted-foreground">Athlete Name / Nickname</label>
+                      <Input value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} className="bg-secondary/50" placeholder="e.g. Big Ron" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-muted-foreground">Initial Password</label>
+                      <Input type="password" value={newAthletePass} onChange={e => setNewAthletePass(e.target.value)} className="bg-secondary/50" />
+                    </div>
+                    <Button type="submit" className="w-full font-bold uppercase tracking-wider bg-primary mt-2">Create Athlete Profile</Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
           </div>
 
-          <div className="relative">
-            <Search className="absolute left-4 top-3.5 h-5 w-5 text-muted-foreground" />
-            <Input 
-              placeholder="Search athletes..." 
-              className="pl-12 h-12 bg-secondary/20 border-transparent focus:bg-secondary/40 text-lg"
+          <div className="relative group">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground group-focus-within:text-primary transition-colors" />
+            <Input
+              placeholder="Search athletes by name..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-12 h-14 bg-secondary/10 border-border/50 focus:bg-secondary/20 text-lg transition-all"
             />
           </div>
 
-          <div className="grid grid-cols-1 gap-4">
-            {athletes?.map((athlete) => (
-              <AthleteCard 
-                key={athlete.id} 
-                athlete={athlete} 
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {filteredAthletes?.map((athlete) => (
+              <AthleteCard
+                key={athlete.id}
+                athlete={athlete}
+                hasCheckedIn={athletesWithCheckin.has(athlete.id)}
                 onOpen={() => setLocation(`/dashboard/athletes/${athlete.id}`)}
                 completion={completions?.find((item) => item.athleteId === athlete.id)}
               />
             ))}
-            {athletes?.length === 0 && (
-              <div className="text-center py-20 text-muted-foreground bg-secondary/10 rounded-xl border border-dashed border-border">
-                <Users className="w-12 h-12 mx-auto mb-4 opacity-20" />
-                <p>No athletes found. Add your first client.</p>
+            {filteredAthletes?.length === 0 && (
+              <div className="col-span-full text-center py-32 text-muted-foreground bg-secondary/5 rounded-2xl border border-dashed border-border/50">
+                <Users className="w-16 h-16 mx-auto mb-4 opacity-10" />
+                <p className="text-lg font-medium">No athletes found matching your search.</p>
+                <Button variant="ghost" onClick={() => { setSearchQuery(""); setFilter("all"); }} className="mt-2 text-primary font-bold">Clear filters</Button>
               </div>
             )}
           </div>
         </div>
-      </main>
-    </div>
+      </div>
+    </LayoutCoach>
   );
 }
 
@@ -174,53 +214,81 @@ function AthleteCard({
   athlete,
   onOpen,
   completion,
+  hasCheckedIn,
 }: {
   athlete: any;
   onOpen: () => void;
   completion?: TrainingCompletion;
+  hasCheckedIn: boolean;
 }) {
   const { checkins } = useCheckins(athlete.id);
   const latestCheckin = checkins?.[0];
 
   return (
-    <Card className="overflow-hidden transition-all duration-300 border-border bg-card hover:border-primary/50 group cursor-pointer">
-      <div 
-        className="p-5 sm:p-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
-        onClick={onOpen}
-      >
-        <div className="flex items-center gap-4">
-          <Avatar className="w-12 h-12 border border-border bg-gradient-to-br from-secondary to-background">
-            {athlete.avatarUrl ? <AvatarImage src={athlete.avatarUrl} alt={`${athlete.username} avatar`} /> : null}
-            <AvatarFallback className="font-display font-bold text-xl text-muted-foreground group-hover:text-primary transition-colors">
-              {athlete.username.substring(0, 2).toUpperCase()}
-            </AvatarFallback>
-          </Avatar>
-          <div>
-            <h3 className="font-display font-bold text-lg tracking-wide group-hover:text-primary transition-colors">{athlete.username}</h3>
-            <p className="text-sm text-muted-foreground">
-              Last check-in: {latestCheckin ? format(new Date(latestCheckin.date), 'MMM d, yyyy') : 'Never'}
-            </p>
+    <Card
+      className={`overflow-hidden transition-all duration-300 border-border/50 bg-card hover:border-primary/50 group cursor-pointer shadow-sm hover:shadow-xl hover:shadow-primary/5 hover:-translate-y-1 ${!hasCheckedIn ? 'border-l-4 border-l-orange-500' : 'border-l-4 border-l-emerald-500'}`}
+      onClick={onOpen}
+    >
+      <CardContent className="p-5 flex flex-col h-full">
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex items-center gap-3">
+            <Avatar className="w-12 h-12 border-2 border-border shadow-inner">
+              {athlete.avatarUrl ? <AvatarImage src={athlete.avatarUrl} alt={`${athlete.username} avatar`} /> : null}
+              <AvatarFallback className="font-display font-bold text-xl bg-secondary text-muted-foreground group-hover:text-primary transition-colors">
+                {athlete.username.substring(0, 2).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <h3 className="font-display font-bold text-lg tracking-wide group-hover:text-primary transition-colors leading-tight">
+                {athlete.displayName || athlete.username}
+              </h3>
+              <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mt-0.5">
+                {athlete.currentPhase || 'Off-season'}
+              </p>
+            </div>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            {!hasCheckedIn ? (
+              <span className="text-[9px] font-bold text-orange-500 bg-orange-500/10 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                Pending Check-in
+              </span>
+            ) : (
+              <span className="text-[9px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase tracking-tighter">
+                Checked In
+              </span>
+            )}
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-3">
-          {latestCheckin ? (
-            <div className="flex items-center gap-2 text-emerald-500 bg-emerald-500/10 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-              <CheckCircle2 className="w-4 h-4" />
-              <span>On Track</span>
-            </div>
-          ) : (
-             <div className="flex items-center gap-2 text-orange-500 bg-orange-500/10 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">
-              <AlertCircle className="w-4 h-4" />
-              <span>No Data</span>
-            </div>
-          )}
-          <div className={`px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider ${completion?.completed ? "bg-emerald-500/10 text-emerald-500" : "bg-secondary/40 text-muted-foreground"}`}>
-            {completion?.completed ? "Workout done" : "Workout pending"}
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="bg-secondary/20 rounded-lg p-2 border border-border/30">
+            <p className="text-[9px] text-muted-foreground uppercase font-bold">Latest Weight</p>
+            <p className="text-sm font-bold font-display">{latestCheckin?.weight || '--'}</p>
           </div>
-          <ChevronRight className="w-5 h-5 text-muted-foreground transition-transform duration-300 group-hover:translate-x-1" />
+          <div className="bg-secondary/20 rounded-lg p-2 border border-border/30">
+            <p className="text-[9px] text-muted-foreground uppercase font-bold">Today's Training</p>
+            <div className="flex items-center gap-1.5">
+              <div className={`w-1.5 h-1.5 rounded-full ${completion?.completed ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]' : 'bg-secondary'}`} />
+              <p className="text-xs font-bold leading-none">{completion?.completed ? 'Logged' : 'Pending'}</p>
+            </div>
+          </div>
         </div>
-      </div>
+
+        <div className="mt-auto pt-3 border-t border-border/50 flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <CalendarDays className="w-3 h-3 text-muted-foreground" />
+            <p className="text-[10px] text-muted-foreground font-medium">
+              Next: <span className="text-foreground">{athlete.nextShowDate ? format(new Date(athlete.nextShowDate), 'MMM d') : 'No Date'}</span>
+            </p>
+          </div>
+          <div className="flex items-center text-primary group-hover:translate-x-1 transition-transform">
+            <span className="text-[10px] font-bold uppercase tracking-wider mr-1">Profile</span>
+            <ChevronRight className="w-3 h-3" />
+          </div>
+        </div>
+      </CardContent>
     </Card>
   );
 }
+
+import { CalendarDays } from "lucide-react";

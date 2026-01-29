@@ -17,6 +17,7 @@ export function useAthletes() {
 
   const createAthlete = useMutation({
     mutationFn: async (data: InsertUser) => {
+      console.log(`Attempting to create athlete: ${data.username}`);
       const res = await fetch(api.athletes.create.path, {
         method: api.athletes.create.method,
         headers: { "Content-Type": "application/json" },
@@ -24,7 +25,8 @@ export function useAthletes() {
       });
       if (!res.ok) {
         const error = await res.json();
-        throw new Error(error.message);
+        console.error("Athlete creation failed:", error);
+        throw new Error(error.message || "Failed to create athlete");
       }
       return await res.json() as User;
     },
@@ -33,6 +35,7 @@ export function useAthletes() {
       toast({ title: "Success", description: "Athlete added successfully" });
     },
     onError: (error: Error) => {
+      console.error("Mutation error (createAthlete):", error);
       toast({ variant: "destructive", title: "Error", description: error.message });
     }
   });

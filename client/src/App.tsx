@@ -9,6 +9,7 @@ import CoachDashboard from "@/pages/CoachDashboard";
 import CoachAthleteProfile from "@/pages/CoachAthleteProfile";
 import CoachCheckins from "@/pages/CoachCheckins";
 import CoachCheckinDetail from "@/pages/CoachCheckinDetail";
+import CoachMessages from "@/pages/CoachMessages";
 import AthleteCheckin from "@/pages/AthleteCheckin";
 import AthleteHistory from "@/pages/AthleteHistory";
 import AthleteDashboard from "./pages/AthleteDashboard";
@@ -17,6 +18,7 @@ import MealPlan from "./pages/MealPlan";
 import ProfileSettings from "./pages/ProfileSettings";
 import AthleteProtocolsHealth from "./pages/AthleteProtocolsHealth";
 import AthleteCalendar from "./pages/AthleteCalendar";
+import AthleteMessages from "./pages/AthleteMessages";
 
 function Router() {
   return (
@@ -25,6 +27,7 @@ function Router() {
       <Route path="/dashboard" component={CoachDashboard} />
       <Route path="/dashboard/checkins" component={CoachCheckins} />
       <Route path="/dashboard/checkins/:id" component={CoachCheckinDetail} />
+      <Route path="/dashboard/messages" component={CoachMessages} />
       <Route path="/dashboard/athletes/:id" component={CoachAthleteProfile} />
       <Route path="/athlete/dashboard" component={AthleteDashboard} />
       <Route path="/athlete/check-in" component={AthleteCheckin} />
@@ -33,6 +36,7 @@ function Router() {
       <Route path="/athlete/meal-plan" component={MealPlan} />
       <Route path="/athlete/protocols-health" component={AthleteProtocolsHealth} />
       <Route path="/athlete/calendar" component={AthleteCalendar} />
+      <Route path="/athlete/messages" component={AthleteMessages} />
       <Route path="/settings/profile" component={ProfileSettings} />
       <Route component={NotFound} />
     </Switch>

@@ -25,6 +25,10 @@ const formSchema = insertCheckinSchema.extend({
   sleep: z.coerce.number().min(1).max(10),
   stress: z.coerce.number().min(1).max(10),
   adherence: z.coerce.number().min(1).max(10),
+  energy: z.coerce.number().min(1).max(10),
+  hunger: z.coerce.number().min(1).max(10),
+  mood: z.coerce.number().min(1).max(10),
+  digestion: z.coerce.number().min(1).max(10),
   posePhotos: z.any(),
 });
 
@@ -38,6 +42,10 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
       sleep: 7,
       stress: 5,
       adherence: 10,
+      energy: 7,
+      hunger: 5,
+      mood: 7,
+      digestion: 8,
       posePhotos: {},
     },
   });
@@ -47,25 +55,41 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
   const [uploadError, setUploadError] = useState<string | null>(null);
 
   const uploadPosePhoto = async (file: File) => {
+    console.log(`Starting upload for file: ${file.name}`);
     const signatureRes = await fetch(api.cloudinary.sign.path, {
       method: api.cloudinary.sign.method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folder: "pose-photos" }),
     });
-    if (!signatureRes.ok) throw new Error("Failed to prepare upload");
+    if (!signatureRes.ok) {
+      const err = await signatureRes.json().catch(() => ({ message: "Failed to get signature" }));
+      console.error("Cloudinary signature failed:", err);
+      throw new Error(`Signature failed: ${err.message}`);
+    }
+
     const { signature, timestamp, cloudName, apiKey } = await signatureRes.json();
+    console.log(`Received signature, uploading to cloudName: ${cloudName}`);
+
     const formData = new FormData();
     formData.append("file", file);
     formData.append("api_key", apiKey);
     formData.append("timestamp", String(timestamp));
     formData.append("signature", signature);
     formData.append("folder", "pose-photos");
+
     const uploadRes = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
       method: "POST",
       body: formData,
     });
-    if (!uploadRes.ok) throw new Error("Upload failed");
+
+    if (!uploadRes.ok) {
+      const errorData = await uploadRes.json().catch(() => ({ error: { message: "Upload failed" } }));
+      console.error("Cloudinary upload failed:", errorData);
+      throw new Error(errorData.error?.message || "Cloudinary Upload failed");
+    }
+
     const uploadData = await uploadRes.json();
+    console.log("Cloudinary upload successful:", uploadData.secure_url);
     return uploadData.secure_url as string;
   };
 
@@ -88,51 +112,66 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
   const sleepValue = watch("sleep");
   const stressValue = watch("stress");
   const adherenceValue = watch("adherence");
+  const energyValue = watch("energy");
+  const hungerValue = watch("hunger");
+  const moodValue = watch("mood");
+  const digestionValue = watch("digestion");
   const watchedPosePhotos = watch("posePhotos") as Record<string, string> | undefined;
   const posePhotosValue = watchedPosePhotos || posePhotos;
 
   return (
     <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="bg-secondary/20 border-border">
-          <CardContent className="pt-6 space-y-4">
-            <div className="space-y-2">
-              <Label className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Current Weight</Label>
-              <div className="relative">
-                <Input {...register("weight")} placeholder="e.g. 185.5 lbs" className="text-lg font-bold" />
-                <div className="absolute inset-y-0 right-3 flex items-center text-muted-foreground pointer-events-none">
-                  lbs
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+        <Card className="bg-secondary/10 border-border/50 shadow-sm">
+          <CardContent className="pt-6 space-y-6">
+            <div className="space-y-1">
+              <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">Current Morning Weight</Label>
+              <div className="relative group">
+                <Input {...register("weight")} placeholder="0.0" className="text-2xl font-display font-bold bg-background h-14 border-border focus:border-primary/50" />
+                <div className="absolute inset-y-0 right-4 flex items-center text-muted-foreground font-bold pointer-events-none group-focus-within:text-primary transition-colors">
+                  LBS
                 </div>
               </div>
-              {errors.weight && <p className="text-destructive text-sm">{errors.weight.message}</p>}
+              {errors.weight && <p className="text-destructive text-xs mt-1">{errors.weight.message}</p>}
             </div>
 
-            <div className="space-y-2">
-              <Label className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Pose Photos</Label>
-              <p className="text-xs text-muted-foreground">Capture consistent poses for better comparison.</p>
-              {uploadError && <p className="text-xs text-destructive">{uploadError}</p>}
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">Pose Photography</Label>
+                <span className="text-[10px] font-bold bg-primary/10 text-primary px-2 py-0.5 rounded-full">Required</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed italic">Consistent lighting and angles help your coach track genuine tissue changes.</p>
+              {uploadError && <p className="text-xs text-destructive bg-destructive/10 p-2 rounded">{uploadError}</p>}
               <div className="grid grid-cols-2 gap-3 mt-3">
                 {POSE_KEYS.map((pose) => (
-                  <div key={pose.key} className="rounded-lg border border-border bg-background/60 p-2 space-y-2">
-                    <div className="text-[11px] uppercase tracking-wide text-muted-foreground">{pose.label}</div>
-                    <div className="aspect-square rounded-md border border-dashed border-border overflow-hidden bg-secondary/30 flex items-center justify-center">
+                  <div key={pose.key} className="rounded-xl border border-border/50 bg-background/40 p-2.5 space-y-2 group hover:border-primary/30 transition-colors">
+                    <div className="text-[10px] font-bold uppercase tracking-tight text-muted-foreground group-hover:text-primary transition-colors">{pose.label}</div>
+                    <div className="aspect-[3/4] rounded-lg border border-dashed border-border overflow-hidden bg-secondary/20 flex flex-col items-center justify-center relative">
                       {posePhotosValue?.[pose.key] ? (
                         <img src={posePhotosValue[pose.key]} alt={pose.label} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-xs text-muted-foreground">No photo</span>
+                        <>
+                          <Camera className="w-5 h-5 text-muted-foreground/30 mb-1" />
+                          <span className="text-[10px] text-muted-foreground font-medium">Empty</span>
+                        </>
+                      )}
+                      {uploadingPose === pose.key && (
+                        <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
+                          <span className="text-[10px] font-bold animate-pulse text-primary uppercase">Uploading...</span>
+                        </div>
                       )}
                     </div>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="block w-full text-[11px] text-muted-foreground file:mr-2 file:rounded-md file:border-0 file:bg-secondary/60 file:px-2 file:py-1 file:text-[11px] file:font-semibold file:text-foreground"
-                      onChange={(event) => handlePoseFile(pose.key, event.target.files?.[0])}
-                      disabled={uploadingPose === pose.key}
-                    />
-                    {uploadingPose === pose.key && (
-                      <p className="text-[11px] text-muted-foreground">Uploading...</p>
-                    )}
+                    <label className="block">
+                      <span className="sr-only">Choose {pose.label}</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        className="block w-full text-[9px] text-muted-foreground file:mr-2 file:rounded file:border-0 file:bg-primary/10 file:px-2 file:py-1 file:text-[9px] file:font-bold file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                        onChange={(event) => handlePoseFile(pose.key, event.target.files?.[0])}
+                        disabled={uploadingPose === pose.key}
+                      />
+                    </label>
                   </div>
                 ))}
               </div>
@@ -140,49 +179,46 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
           </CardContent>
         </Card>
 
-        <Card className="bg-secondary/20 border-border">
-          <CardContent className="pt-6 space-y-6">
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <Label className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Sleep Quality</Label>
-                <span className="text-primary font-mono font-bold">{sleepValue}/10</span>
-              </div>
-              <Slider
-                value={[sleepValue]}
-                min={1} max={10} step={1}
-                onValueChange={([v]) => setValue("sleep", v)}
-                className="[&_.range]:bg-primary"
-              />
-            </div>
+        <div className="space-y-6">
+          <Card className="bg-secondary/10 border-border/50 shadow-sm">
+            <CardContent className="pt-6 space-y-6">
+              <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] border-b border-border/50 pb-2">Bio-feedback Markers</h4>
 
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <Label className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Stress Level</Label>
-                <span className="text-orange-500 font-mono font-bold">{stressValue}/10</span>
+              <div className="space-y-6">
+                <FeedbackSlider label="Sleep Quality" value={sleepValue} color="text-primary" onValueChange={(v) => setValue("sleep", v)} />
+                <FeedbackSlider label="Stress Level" value={stressValue} color="text-orange-500" onValueChange={(v) => setValue("stress", v)} />
+                <FeedbackSlider label="Energy Levels" value={energyValue} color="text-yellow-500" onValueChange={(v) => setValue("energy", v)} />
+                <FeedbackSlider label="Hunger" value={hungerValue} color="text-red-500" onValueChange={(v) => setValue("hunger", v)} />
+                <FeedbackSlider label="Mood" value={moodValue} color="text-pink-500" onValueChange={(v) => setValue("mood", v)} />
+                <FeedbackSlider label="Digestion" value={digestionValue} color="text-emerald-500" onValueChange={(v) => setValue("digestion", v)} />
+                <FeedbackSlider label="Plan Adherence" value={adherenceValue} color="text-emerald-600" onValueChange={(v) => setValue("adherence", v)} />
               </div>
-              <Slider
-                value={[stressValue]}
-                min={1} max={10} step={1}
-                onValueChange={([v]) => setValue("stress", v)}
-                className="[&_.range]:bg-orange-500"
-              />
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="space-y-4">
-              <div className="flex justify-between">
-                <Label className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Plan Adherence</Label>
-                <span className="text-emerald-500 font-mono font-bold">{adherenceValue}/10</span>
+          <Card className="bg-secondary/10 border-border/50 shadow-sm">
+            <CardContent className="pt-6 space-y-4">
+              <div className="space-y-2">
+                <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">Biofeedback / Weekly Notes</Label>
+                <Textarea
+                  {...register("notes")}
+                  placeholder="Describe your week..."
+                  className="min-h-[120px] bg-background border-border/50 focus:border-primary/40 text-sm leading-relaxed"
+                />
               </div>
-              <Slider
-                value={[adherenceValue]}
-                min={1} max={10} step={1}
-                onValueChange={([v]) => setValue("adherence", v)}
-                className="[&_.range]:bg-emerald-500"
-              />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="space-y-2">
+                <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">Routine Adjustments</Label>
+                <Textarea
+                  {...register("programChanges")}
+                  placeholder="Any changes to your protocols?"
+                  className="min-h-[80px] bg-background border-border/50 focus:border-primary/40 text-sm italic"
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
+
 
       <div className="space-y-2">
         <Label className="text-muted-foreground uppercase text-xs font-bold tracking-wider">Weekly Notes / Biofeedback</Label>
@@ -212,3 +248,22 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
     </form>
   );
 }
+
+function FeedbackSlider({ label, value, color, onValueChange }: { label: string, value: number, color: string, onValueChange: (v: number) => void }) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex justify-between items-center">
+        <Label className="text-muted-foreground uppercase text-[9px] font-bold tracking-wider">{label}</Label>
+        <span className={`font-mono font-bold text-sm ${color}`}>{value}/10</span>
+      </div>
+      <Slider
+        value={[value]}
+        min={1} max={10} step={1}
+        onValueChange={([v]) => onValueChange(v)}
+        className={`[&_.range]:bg-current ${color.replace('text-', 'bg-')}`}
+      />
+    </div>
+  );
+}
+
+import { Camera } from "lucide-react";

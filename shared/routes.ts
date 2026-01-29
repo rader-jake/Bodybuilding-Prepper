@@ -16,6 +16,8 @@ import {
   healthMarkers,
   trainingCompletions,
   insertTrainingCompletionSchema,
+  messages,
+  insertMessageSchema,
 } from './schema';
 
 export const errorSchemas = {
@@ -334,6 +336,30 @@ export const api = {
       },
     },
   },
+  messages: {
+    list: {
+      method: "GET" as const,
+      path: "/api/messages/:otherUserId",
+      responses: {
+        200: z.array(z.custom<typeof messages.$inferSelect>()),
+      },
+    },
+    send: {
+      method: "POST" as const,
+      path: "/api/messages",
+      input: insertMessageSchema,
+      responses: {
+        201: z.custom<typeof messages.$inferSelect>(),
+      },
+    },
+    markRead: {
+      method: "PATCH" as const,
+      path: "/api/messages/:id/read",
+      responses: {
+        200: z.custom<typeof messages.$inferSelect>(),
+      },
+    },
+  },
 };
 
 export function buildUrl(path: string, params?: Record<string, string | number>): string {
@@ -366,4 +392,6 @@ export type {
   InsertHealthMarker,
   TrainingCompletion,
   InsertTrainingCompletion,
+  Message,
+  InsertMessage,
 } from './schema';

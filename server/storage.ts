@@ -8,6 +8,7 @@ import {
   protocols,
   healthMarkers,
   trainingCompletions,
+  messages,
   type User,
   type InsertUser,
   type Checkin,
@@ -24,8 +25,10 @@ import {
   type InsertHealthMarker,
   type TrainingCompletion,
   type InsertTrainingCompletion,
+  type Message,
+  type InsertMessage,
 } from "@shared/schema";
-import { eq, desc, inArray, and } from "drizzle-orm";
+import { eq, desc, inArray, and, or } from "drizzle-orm";
 
 export interface IStorage {
   // User/Auth
@@ -78,6 +81,11 @@ export interface IStorage {
   createTrainingCompletion(completion: InsertTrainingCompletion): Promise<TrainingCompletion>;
   updateTrainingCompletion(id: number, completion: Partial<InsertTrainingCompletion>): Promise<TrainingCompletion>;
   getTrainingCompletion(id: number): Promise<TrainingCompletion | undefined>;
+
+  // Messages
+  getMessagesBetweenUsers(user1Id: number, user2Id: number): Promise<Message[]>;
+  createMessage(message: InsertMessage): Promise<Message>;
+  markMessageRead(id: number): Promise<Message>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -106,7 +114,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createCheckin(checkin: InsertCheckin): Promise<Checkin> {
-    const [newCheckin] = await db.insert(checkins).values(checkin).returning();
+    const [newCheckin] = await db.insert(checkins).values(checkin as any).returning();
     return newCheckin;
   }
 
@@ -115,7 +123,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async updateCheckin(id: number, checkin: Partial<InsertCheckin> & { coachFeedback?: string }): Promise<Checkin> {
-    const [updated] = await db.update(checkins).set(checkin).where(eq(checkins.id, id)).returning();
+    const [updated] = await db.update(checkins).set(checkin as any).where(eq(checkins.id, id)).returning();
     return updated;
   }
 
@@ -302,6 +310,29 @@ export class DatabaseStorage implements IStorage {
   async getTrainingCompletion(id: number): Promise<TrainingCompletion | undefined> {
     const [completion] = await db.select().from(trainingCompletions).where(eq(trainingCompletions.id, id));
     return completion;
+  }
+
+  async getMessagesBetweenUsers(user1Id: number, user2Id: number): Promise<Message[]> {
+    return await db
+      .select()
+      .from(messages)
+      .where(
+        or(
+          and(eq(messages.senderId, user1Id), eq(messages.receiverId, user2Id)),
+          and(eq(messages.senderId, user2Id), eq(messages.receiverId, user1Id))
+        )
+      )
+      .orderBy(desc(messages.createdAt));
+  }
+
+  async createMessage(message: InsertMessage): Promise<Message> {
+    const [created] = await db.insert(messages).values(message).returning();
+    return created;
+  }
+
+  async markMessageRead(id: number): Promise<Message> {
+    const [updated] = await db.update(messages).set({ readAt: new Date() }).where(eq(messages.id, id)).returning();
+    return updated;
   }
 }
 

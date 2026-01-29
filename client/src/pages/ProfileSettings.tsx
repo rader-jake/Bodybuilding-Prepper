@@ -1,4 +1,5 @@
 import LayoutAthlete from "@/components/LayoutAthlete";
+import LayoutCoach from "@/components/LayoutCoach";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -96,8 +97,10 @@ export default function ProfileSettings() {
     setRemoveAvatar(true);
   };
 
+  const Layout = user?.role === 'coach' ? LayoutCoach : LayoutAthlete;
+
   return (
-    <LayoutAthlete>
+    <Layout>
       <div className="space-y-6 max-w-2xl mx-auto">
         <h1 className="text-2xl font-bold text-center">Profile</h1>
         <form onSubmit={onSubmit} className="space-y-6">
@@ -138,6 +141,6 @@ export default function ProfileSettings() {
           </div>
         </form>
       </div>
-    </LayoutAthlete>
+    </Layout>
   );
 }

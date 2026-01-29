@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ChevronLeft, Link as LinkIcon, HeartPulse, ShieldAlert, ClipboardList, Target, CalendarDays } from "lucide-react";
+import { ChevronLeft, Link as LinkIcon, HeartPulse, ShieldAlert, ClipboardList, Target, CalendarDays, MessageSquare } from "lucide-react";
 import { api } from "@shared/routes";
 import { useEffect, useState } from "react";
 import { format, differenceInDays } from "date-fns";
@@ -317,19 +317,25 @@ export default function CoachAthleteProfile() {
                 {athlete.username.substring(0, 2).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <div>
-              <h1 className="text-2xl font-display font-bold tracking-tight">{athlete.displayName || athlete.username}</h1>
-              <p className="text-sm text-muted-foreground">
-                {athlete.bio || "No bio yet."}
+            <div className="flex-1">
+              <h1 className="text-3xl font-display font-bold tracking-tight uppercase">{athlete.displayName || athlete.username}</h1>
+              <p className="text-sm text-muted-foreground font-medium mt-1">
+                {athlete.bio || "Pro Athlete • Ready for stage"}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 text-xs text-muted-foreground">
-            <div className="px-3 py-2 rounded-full bg-secondary/40 border border-border">
-              {checkins?.length ? `${checkins.length} check-ins` : "No check-ins yet"}
-            </div>
-            <div className="px-3 py-2 rounded-full bg-secondary/40 border border-border">
-              Phase: {athlete.currentPhase || "off-season"}
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => setLocation(`/dashboard/messages?athleteId=${athlete.id}`)}
+              variant="outline"
+              className="font-bold uppercase tracking-widest h-12 px-6"
+            >
+              <MessageSquare className="w-4 h-4 mr-2" />
+              Message
+            </Button>
+            <div className="hidden sm:flex flex-col items-end gap-1 px-4 py-2 bg-secondary/20 rounded-xl border border-border/50">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Current Phase</span>
+              <span className="text-sm font-bold uppercase text-primary">{athlete.currentPhase || "Off-season"}</span>
             </div>
           </div>
         </section>
@@ -531,7 +537,7 @@ export default function CoachAthleteProfile() {
               <select
                 className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
                 value={phaseSelection}
-                onChange={(event) => setPhaseSelection(event.target.value)}
+                onChange={(event) => setPhaseSelection(event.target.value as any)}
               >
                 <option value="off-season">Off-season</option>
                 <option value="bulking">Bulking</option>
@@ -736,7 +742,7 @@ export default function CoachAthleteProfile() {
                   <select
                     className="border border-border bg-background px-3 py-2 rounded-md text-sm"
                     value={selectedPose}
-                    onChange={(event) => setSelectedPose(event.target.value)}
+                    onChange={(event) => setSelectedPose(event.target.value as any)}
                   >
                     {POSE_KEYS.map((pose) => (
                       <option key={pose.key} value={pose.key}>

@@ -33,6 +33,10 @@ export const checkins = pgTable("checkins", {
   sleep: integer("sleep").notNull(),
   stress: integer("stress").notNull(),
   adherence: integer("adherence").notNull(),
+  energy: integer("energy").notNull().default(5),
+  hunger: integer("hunger").notNull().default(5),
+  mood: integer("mood").notNull().default(5),
+  digestion: integer("digestion").notNull().default(5),
   coachFeedback: text("coach_feedback"),
   coachChanges: jsonb("coach_changes").$type<string[]>(), // Audit log for coach edits
   status: text("status").default("new"),
@@ -98,6 +102,17 @@ export const trainingCompletions = pgTable("training_completions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const messages = pgTable("messages", {
+  id: serial("id").primaryKey(),
+  senderId: integer("sender_id").notNull(),
+  receiverId: integer("receiver_id").notNull(),
+  content: text("content").notNull(),
+  attachmentUrl: text("attachment_url"),
+  attachmentType: text("attachment_type"), // 'image', 'video'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  readAt: timestamp("read_at"),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   coach: one(users, {
@@ -109,6 +124,21 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     relationName: "coach_athletes",
   }),
   checkins: many(checkins),
+  sentMessages: many(messages, { relationName: "sent_messages" }),
+  receivedMessages: many(messages, { relationName: "received_messages" }),
+}));
+
+export const messagesRelations = relations(messages, ({ one }) => ({
+  sender: one(users, {
+    fields: [messages.senderId],
+    references: [users.id],
+    relationName: "sent_messages",
+  }),
+  receiver: one(users, {
+    fields: [messages.receiverId],
+    references: [users.id],
+    relationName: "received_messages",
+  }),
 }));
 
 export const checkinsRelations = relations(checkins, ({ one }) => ({
@@ -127,6 +157,7 @@ export const insertNutritionPlanSchema = createInsertSchema(nutritionPlans).omit
 export const insertProtocolSchema = createInsertSchema(protocols).omit({ id: true });
 export const insertHealthMarkerSchema = createInsertSchema(healthMarkers).omit({ id: true, date: true });
 export const insertTrainingCompletionSchema = createInsertSchema(trainingCompletions).omit({ id: true, createdAt: true });
+export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -145,3 +176,5 @@ export type HealthMarker = typeof healthMarkers.$inferSelect;
 export type InsertHealthMarker = z.infer<typeof insertHealthMarkerSchema>;
 export type TrainingCompletion = typeof trainingCompletions.$inferSelect;
 export type InsertTrainingCompletion = z.infer<typeof insertTrainingCompletionSchema>;
+export type Message = typeof messages.$inferSelect;
+export type InsertMessage = z.infer<typeof insertMessageSchema>;

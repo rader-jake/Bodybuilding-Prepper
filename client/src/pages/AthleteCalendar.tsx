@@ -21,57 +21,114 @@ export default function AthleteCalendar() {
 
   return (
     <LayoutAthlete>
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-6">
+      <div className="max-w-4xl mx-auto space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         <div>
-          <h1 className="text-2xl font-bold flex items-center gap-2">
-            <CalendarDays className="w-6 h-6 text-primary" />
-            Show Calendar
+          <h1 className="text-3xl font-display font-bold flex items-center gap-3 uppercase tracking-tight">
+            <CalendarDays className="w-8 h-8 text-primary shadow-sm" />
+            Vanguard Calendar
           </h1>
-          <p className="text-sm text-muted-foreground">Track your stage date and countdown.</p>
+          <p className="text-sm text-muted-foreground font-medium mt-1">Countdown to your moment on stage.</p>
         </div>
 
-        <Card>
-          <CardContent className="p-6 space-y-3">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-              <div>
-                <div className="text-xs text-muted-foreground uppercase tracking-wide">Next show</div>
-                <div className="text-lg font-semibold">{showDate ? `${showName} • ${format(showDate, "MMM d, yyyy")}` : "No show set"}</div>
-              </div>
-              <div className="rounded-full border border-border bg-secondary/40 px-4 py-2 text-xs text-muted-foreground">
-                {countdownDays !== null ? `${countdownDays} days to show` : "Countdown unavailable"}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <Card className="md:col-span-2 border-border/50 bg-card/50 backdrop-blur-sm shadow-xl overflow-hidden relative group">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-2xl -mr-16 -mt-16 group-hover:bg-primary/10 transition-colors" />
+            <CardContent className="p-8">
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Next Show Engagement</span>
+                  {showDate && (
+                    <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase">Locked In</span>
+                  )}
+                </div>
 
-        <Card>
-          <CardContent className="p-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="text-sm font-semibold">{format(today, "MMMM yyyy")}</div>
-              <div className="text-xs text-muted-foreground">Internal calendar</div>
-            </div>
-            <div className="grid grid-cols-7 gap-2 text-center text-[11px] text-muted-foreground">
-              {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
-                <div key={day}>{day}</div>
-              ))}
-            </div>
-            <div className="grid grid-cols-7 gap-2 text-[11px]">
-              {Array.from({ length: weekdayOffset }).map((_, index) => (
-                <div key={`empty-${index}`} />
-              ))}
-              {monthDays.map((day) => {
-                const isShowDay = showDate && isSameDay(day, showDate);
-                return (
-                  <div
-                    key={day.toISOString()}
-                    className={`h-10 rounded-md border border-border flex items-center justify-center text-xs ${
-                      isSameMonth(day, today) ? "bg-background" : "bg-secondary/20 text-muted-foreground"
-                    } ${isShowDay ? "border-primary bg-primary/10 text-primary font-semibold" : ""}`}
-                  >
-                    {format(day, "d")}
+                <div className="space-y-1">
+                  <h2 className="text-3xl font-display font-bold uppercase tracking-tight">
+                    {showDate ? showName : "No Target Show Defined"}
+                  </h2>
+                  {showDate && (
+                    <p className="text-muted-foreground font-medium">
+                      {format(showDate, "MMMM do, yyyy")}
+                    </p>
+                  )}
+                </div>
+
+                {showDate && (
+                  <div className="mt-4 pt-6 border-t border-border/50 grid grid-cols-3 gap-4">
+                    <div className="text-center">
+                      <p className="text-[24px] font-display font-bold leading-none">{Math.floor(countdownDays! / 7)}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Weeks Out</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[24px] font-display font-bold leading-none text-primary">{countdownDays}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Days Out</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[24px] font-display font-bold leading-none">{Math.floor(countdownDays! * 24)}</p>
+                      <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mt-1">Hours Out</p>
+                    </div>
                   </div>
-                );
-              })}
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="border-border/50 bg-primary shadow-lg shadow-primary/20 flex flex-col justify-center text-primary-foreground p-8 text-center bg-gradient-to-br from-primary to-primary-foreground/20">
+            <div className="text-[10px] font-bold uppercase tracking-[0.2em] opacity-80 mb-2">Focus Mode</div>
+            <p className="text-lg font-display font-bold uppercase leading-tight">
+              "The pain of discipline is temporary. The pain of regret is forever."
+            </p>
+          </Card>
+        </div>
+
+        <Card className="border-border/50 bg-card/30 backdrop-blur-sm overflow-hidden shadow-sm">
+          <CardContent className="p-0">
+            <div className="p-6 border-b border-border/50 flex items-center justify-between bg-secondary/5">
+              <div className="text-sm font-bold uppercase tracking-widest">{format(currentMonth, "MMMM yyyy")}</div>
+              <div className="flex gap-1">
+                <div className="w-2.5 h-2.5 rounded-full bg-primary/20" />
+                <div className="w-2.5 h-2.5 rounded-full bg-primary" />
+              </div>
+            </div>
+
+            <div className="p-6">
+              <div className="grid grid-cols-7 gap-3 text-center mb-4">
+                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
+                  <div key={day} className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.1em]">{day}</div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-7 gap-3">
+                {Array.from({ length: weekdayOffset }).map((_, index) => (
+                  <div key={`empty-${index}`} className="aspect-square rounded-xl bg-secondary/5 border border-transparent" />
+                ))}
+
+                {monthDays.map((date) => {
+                  const isShowDay = showDate && isSameDay(date, showDate);
+                  const isPast = date < today && !isSameDay(date, today);
+                  const isCur = isSameDay(date, today);
+
+                  return (
+                    <div
+                      key={date.toISOString()}
+                      className={`aspect-square rounded-xl border flex flex-col items-center justify-center relative transition-all duration-300 ${isShowDay
+                          ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30 z-10 scale-105"
+                          : isCur
+                            ? "border-primary/50 bg-primary/5 text-primary font-bold shadow-[0_0_15px_rgba(var(--primary),0.1)]"
+                            : isPast
+                              ? "border-border/20 bg-secondary/5 opacity-30"
+                              : "border-border/50 bg-background hover:border-primary/30"
+                        }`}
+                    >
+                      <span className={`text-xs ${isShowDay ? "font-bold text-lg" : "font-medium"}`}>
+                        {format(date, "d")}
+                      </span>
+                      {isShowDay && <span className="text-[7px] font-bold uppercase mt-0.5">Stage Day</span>}
+                      {isCur && !isShowDay && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary shadow-[0_0_5px_rgba(var(--primary),1)]" />}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -79,3 +136,5 @@ export default function AthleteCalendar() {
     </LayoutAthlete>
   );
 }
+
+const currentMonth = new Date();

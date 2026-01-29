@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Home, FileText, Clock, Activity, Settings, Layout, Menu, X, LogOut, HeartPulse, CalendarDays } from "lucide-react";
+import { Home, FileText, Clock, Activity, Settings, Layout, Menu, X, LogOut, HeartPulse, CalendarDays, MessageSquare } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
+import BottomNavAthlete from "./BottomNavAthlete";
 
 export default function LayoutAthlete({ children }: { children: React.ReactNode }) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -63,6 +64,12 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
                 <Link href="/athlete/calendar" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
                   <CalendarDays className="w-5 h-5 text-primary" />
                   <span>Show Calendar</span>
+                </Link>
+              </li>
+              <li>
+                <Link href="/athlete/messages" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
+                  <MessageSquare className="w-5 h-5 text-primary" />
+                  <span>Messages</span>
                 </Link>
               </li>
               <li>
@@ -226,9 +233,10 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
             )}
           </header>
 
-          <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">{children}</main>
+          <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 mb-16 md:mb-0">{children}</main>
         </div>
       </div>
+      <BottomNavAthlete />
     </div>
   );
 }

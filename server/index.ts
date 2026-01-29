@@ -65,11 +65,18 @@ app.use((req, res, next) => {
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+    log(`ERROR: ${err.message}`, "error");
+    if (err.stack) console.error(err.stack);
+
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
 
-    res.status(status).json({ message });
-    throw err;
+    if (!res.headersSent) {
+      res.status(status).json({
+        message,
+        details: process.env.NODE_ENV === 'development' ? err.details || err.errors : undefined
+      });
+    }
   });
 
   // importantly only setup vite in development and after

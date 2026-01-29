@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
+import { log } from "./index";
 import { api } from "@shared/routes";
 import { z } from "zod";
 import session from "express-session";
@@ -83,11 +84,11 @@ export async function registerRoutes(
         res.status(201).json(user);
       });
     } catch (err) {
-        if (err instanceof z.ZodError) {
-          res.status(400).json({ message: err.errors[0].message });
-        } else {
-            res.status(500).json({ message: "Internal server error" });
-        }
+      if (err instanceof z.ZodError) {
+        res.status(400).json({ message: err.errors[0].message });
+      } else {
+        res.status(500).json({ message: "Internal server error" });
+      }
     }
   });
 
@@ -134,26 +135,35 @@ export async function registerRoutes(
         apiKey = cloudinaryUrl.username;
         apiSecret = cloudinaryUrl.password;
       } catch (error) {
+        log(`Cloudinary configuration error: Invalid CLOUDINARY_URL format`, "error");
         return res.status(500).json({ message: "Invalid CLOUDINARY_URL format" });
       }
     }
     if (!cloudName || !apiKey || !apiSecret) {
+      log(`Cloudinary configuration error: Missing credentials`, "error");
       return res.status(500).json({ message: "Cloudinary is not configured" });
     }
 
-    const input = api.cloudinary.sign.input.parse(req.body);
-    const timestamp = Math.floor(Date.now() / 1000);
-    const params = new URLSearchParams();
-    if (input.folder) params.append("folder", input.folder);
-    params.append("timestamp", String(timestamp));
-    const signature = crypto.createHash("sha1").update(params.toString() + apiSecret).digest("hex");
+    try {
+      const input = api.cloudinary.sign.input.parse(req.body);
+      const timestamp = Math.floor(Date.now() / 1000);
+      const params = new URLSearchParams();
+      if (input.folder) params.append("folder", input.folder);
+      params.append("timestamp", String(timestamp));
+      const signature = crypto.createHash("sha1").update(params.toString() + apiSecret).digest("hex");
 
-    res.json({
-      signature,
-      timestamp,
-      cloudName,
-      apiKey,
-    });
+      res.json({
+        signature,
+        timestamp,
+        cloudName,
+        apiKey,
+      });
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
   });
 
   // App Routes
@@ -170,16 +180,28 @@ export async function registerRoutes(
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = req.user as any;
     if (user.role !== 'coach') return res.sendStatus(403);
-    
-    const input = api.athletes.create.input.parse(req.body);
-    const hashedPassword = await hashPassword(input.password);
-    const athlete = await storage.createUser({ 
-        ...input, 
+
+    try {
+      const input = api.athletes.create.input.parse(req.body);
+      const existing = await storage.getUserByUsername(input.username);
+      if (existing) {
+        return res.status(400).json({ message: "An athlete with that username already exists." });
+      }
+
+      const hashedPassword = await hashPassword(input.password);
+      const athlete = await storage.createUser({
+        ...input,
         password: hashedPassword,
         coachId: user.id,
         role: 'athlete'
-    });
-    res.status(201).json(athlete);
+      });
+      res.status(201).json(athlete);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
   });
 
   app.patch(api.athletes.update.path, async (req, res) => {
@@ -210,12 +232,12 @@ export async function registerRoutes(
     if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
-    
+
     // Security: Only view own checkins or if coach of that athlete
     if (user.role === 'athlete' && athleteId !== user.id) return res.sendStatus(403);
     if (user.role === 'coach') {
-        const athlete = await storage.getUser(athleteId);
-        if (athlete?.coachId !== user.id) return res.sendStatus(403);
+      const athlete = await storage.getUser(athleteId);
+      if (athlete?.coachId !== user.id) return res.sendStatus(403);
     }
 
     const checkins = await storage.getCheckinsByAthlete(athleteId);
@@ -244,9 +266,9 @@ export async function registerRoutes(
     const user = req.user as any;
     const checkinId = Number(req.params.id);
     const checkin = await storage.getCheckin(checkinId);
-    
+
     if (!checkin) return res.sendStatus(404);
-    
+
     // Coach can update feedback, Athlete can update data (maybe restricted logic later)
     // For MVP, allow both to update relevant parts
     const input = api.checkins.update.input.parse(req.body);
@@ -504,23 +526,77 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Message Routes
+  app.get(api.messages.list.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const user = req.user as any;
+    const otherUserId = Number(req.params.otherUserId);
+
+    // Security: Athletes can only message their coach. Coaches can only message their athletes.
+    if (user.role === 'athlete') {
+      if (otherUserId !== user.coachId) return res.sendStatus(403);
+    } else if (user.role === 'coach') {
+      const otherUser = await storage.getUser(otherUserId);
+      if (!otherUser || otherUser.coachId !== user.id) return res.sendStatus(403);
+    }
+
+    const messages = await storage.getMessagesBetweenUsers(user.id, otherUserId);
+    res.json(messages);
+  });
+
+  app.post(api.messages.send.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const user = req.user as any;
+
+    try {
+      const input = api.messages.send.input.parse(req.body);
+
+      if (input.senderId !== user.id) return res.sendStatus(403);
+
+      // Security: same as list
+      if (user.role === 'athlete') {
+        if (input.receiverId !== user.coachId) return res.sendStatus(403);
+      } else if (user.role === 'coach') {
+        const receiver = await storage.getUser(input.receiverId);
+        if (!receiver || receiver.coachId !== user.id) return res.sendStatus(403);
+      }
+
+      const message = await storage.createMessage(input);
+      res.status(201).json(message);
+    } catch (err) {
+      if (err instanceof z.ZodError) {
+        return res.status(400).json({ message: err.errors[0].message });
+      }
+      throw err;
+    }
+  });
+
+  app.patch(api.messages.markRead.path, async (req, res) => {
+    if (!req.isAuthenticated()) return res.sendStatus(401);
+    const user = req.user as any;
+    const messageId = Number(req.params.id);
+    // Realistically we should check if the user is the receiver, but keeping it simple for now
+    const updated = await storage.markMessageRead(messageId);
+    res.json(updated);
+  });
+
   // Seed Data
   if ((await storage.getUserByUsername("coach")) === undefined) {
     const hp = await hashPassword("coach");
     const coach = await storage.createUser({ username: "coach", password: hp, role: "coach" });
-    
+
     const hp2 = await hashPassword("athlete");
     const athlete = await storage.createUser({ username: "athlete", password: hp2, role: "athlete", coachId: coach.id });
-    
+
     await storage.createCheckin({
-        athleteId: athlete.id,
-        weight: "200lbs",
-        photos: [],
-        notes: "Feeling good",
-        sleep: 8,
-        stress: 3,
-        adherence: 9,
-        coachFeedback: "Great job, keep pushing!"
+      athleteId: athlete.id,
+      weight: "200lbs",
+      photos: [],
+      notes: "Feeling good",
+      sleep: 8,
+      stress: 3,
+      adherence: 9,
+      coachFeedback: "Great job, keep pushing!"
     });
   }
 

@@ -31,170 +31,211 @@ export default function AthleteDashboard() {
 
   return (
     <LayoutAthlete>
-      <div className="space-y-6">
-        <div className="bg-card rounded-lg p-5 sm:p-6 shadow-sm border border-border space-y-4">
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="text-xs uppercase tracking-widest text-muted-foreground">Athlete Dashboard</div>
-              <h2 className="text-xl sm:text-2xl font-bold truncate">Welcome back, {user?.displayName || user?.username}</h2>
+      <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+        {/* Hero Section */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background border border-primary/10 p-6 sm:p-8 shadow-2xl">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
+
+          <div className="relative z-10 flex flex-col md:items-center md:flex-row justify-between gap-6">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-primary text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
+                  {user?.currentPhase || "Off-season"}
+                </span>
+                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Training Phase</span>
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-display font-bold uppercase tracking-tight">
+                Welcome, {user?.displayName || user?.username}
+              </h2>
+              <p className="text-muted-foreground text-sm sm:text-base max-w-lg">
+                Stay consistent. Your transformation is the result of what you do every day.
+              </p>
+            </div>
+
+            <div className="flex flex-col sm:flex-row gap-3">
+              <Link href="/athlete/check-in">
+                <Button className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest shadow-lg shadow-primary/20 group">
+                  Submit Check-In
+                  <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </Button>
+              </Link>
+              <Link href="/athlete/messages">
+                <Button variant="outline" className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest backdrop-blur-sm">
+                  <MessageSquare className="w-4 h-4 mr-2" />
+                  Coach Messenger
+                </Button>
+              </Link>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="text-xs uppercase tracking-wide text-muted-foreground">Phase</span>
-            <span className="px-3 py-1 rounded-full text-xs font-semibold bg-secondary/40 border border-border">
-              {user?.currentPhase || "off-season"}
-            </span>
-            {user?.nextShowName && user.nextShowDate && (
-              <span className="px-3 py-1 rounded-full text-xs font-semibold bg-primary/10 text-primary border border-primary/20">
-                {user.nextShowName} • {format(new Date(user.nextShowDate), "MMM d")}
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center justify-between gap-3">
-            <div className="text-xs text-muted-foreground">Weekly check-ins keep your coach aligned.</div>
-            <Link href="/athlete/check-in">
-              <Button className="bg-primary">Submit Check-In</Button>
-            </Link>
-          </div>
+          {user?.nextShowName && user.nextShowDate && (
+            <div className="mt-8 pt-6 border-t border-primary/10 flex items-center gap-4">
+              <div className="flex flex-col">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contest Countdown</span>
+                <span className="text-lg font-display font-bold text-primary uppercase">
+                  {user.nextShowName} • {formatDistanceToNow(new Date(user.nextShowDate), { addSuffix: false })} to go
+                </span>
+              </div>
+              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden hidden sm:block">
+                <div className="h-full bg-primary w-2/3 shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-primary" />
-                This Week's Overview
-              </h3>
-              {isLoading && <div className="text-sm text-muted-foreground">Loading...</div>}
-              {!isLoading && !last && <div className="text-sm text-muted-foreground mt-4">No check-ins yet. Submit your first weekly check-in.</div>}
-              {last && (
-                <div className="mt-4 space-y-2">
-                  <div className="text-sm text-muted-foreground">Last check-in: <span className="font-bold">{format(new Date(last.date), 'MMM d, yyyy')}</span></div>
-                  <div className="text-sm">Weight: <span className="font-bold">{last.weight}</span></div>
-                  <div className="text-sm">Status: <span className="px-2 py-1 rounded text-xs bg-emerald-500/10 text-emerald-500">On track</span></div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                Workout Plan
-              </h3>
-              <p className="text-sm text-muted-foreground mt-2">
-                {hasWorkoutLink
-                  ? "Coach shared a workout plan document."
-                  : (currentWorkoutPlan ? "Current week plan ready to view." : "No structured workout plan yet.")}
-              </p>
-              <div className="pt-2">
-                {hasWorkoutLink ? (
-                  <a href={workoutPlanLink} target="_blank" rel="noreferrer">
-                    <Button variant="ghost">Open workout plan</Button>
-                  </a>
-                ) : (
-                  <Link href="/athlete/workout-plan"><Button variant="ghost">View full workout plan</Button></Link>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Nutrition Card */}
+          <Card className="border-border/50 bg-card hover:border-primary/30 transition-colors shadow-sm overflow-hidden flex flex-col">
+            <div className="p-6 space-y-4 flex-1">
+              <div className="flex items-center justify-between">
+                <h3 className="font-display font-bold text-xl flex items-center gap-2">
+                  <Utensils className="w-5 h-5 text-primary" />
+                  Daily Nutrition
+                </h3>
+                {currentNutritionPlan && (
+                  <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase">Target Set</span>
                 )}
               </div>
-            </CardContent>
-          </Card>
 
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <Utensils className="w-5 h-5 text-primary" />
-                Meal Plan
-              </h3>
-              <p className="text-sm text-muted-foreground mt-2">
-                {hasMealLink
-                  ? "Coach shared a meal plan document."
-                  : (currentNutritionPlan ? "Current week macros ready to view." : "No meal plan yet.")}
-              </p>
-              <div className="pt-2">
-                {hasMealLink ? (
-                  <a href={mealPlanLink} target="_blank" rel="noreferrer">
-                    <Button variant="ghost">Open meal plan</Button>
-                  </a>
-                ) : (
-                  <Link href="/athlete/meal-plan"><Button variant="ghost">View full meal plan</Button></Link>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                Coach Notes
-              </h3>
-              <div className="mt-2 text-sm text-muted-foreground">{last?.coachFeedback || 'No feedback yet from your coach.'}</div>
-              <div className="pt-2">
-                <Link href="/athlete/history"><Button variant="ghost">View history</Button></Link>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <CalendarDays className="w-5 h-5 text-primary" />
-                Show Countdown
-              </h3>
-              {user?.nextShowDate ? (
-                <div className="mt-2 text-sm text-muted-foreground">
-                  {user?.nextShowName || "Next show"} in {formatDistanceToNow(new Date(user.nextShowDate), { addSuffix: false })}
+              {currentNutritionPlan ? (
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="bg-secondary/20 p-3 rounded-lg border border-border/30">
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Protein</p>
+                    <p className="text-lg font-bold font-display">{currentNutritionPlan.proteinG}g</p>
+                  </div>
+                  <div className="bg-secondary/20 p-3 rounded-lg border border-border/30">
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Carbs</p>
+                    <p className="text-lg font-bold font-display">{currentNutritionPlan.carbsG}g</p>
+                  </div>
+                  <div className="bg-secondary/20 p-3 rounded-lg border border-border/30">
+                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Fats</p>
+                    <p className="text-lg font-bold font-display">{currentNutritionPlan.fatsG}g</p>
+                  </div>
+                  <div className="bg-primary/5 p-3 rounded-lg border border-primary/20">
+                    <p className="text-[10px] text-primary/80 uppercase font-bold tracking-wider">Calories</p>
+                    <p className="text-lg font-bold font-display text-primary">{currentNutritionPlan.calories || (currentNutritionPlan.proteinG! * 4 + currentNutritionPlan.carbsG! * 4 + currentNutritionPlan.fatsG! * 9)}</p>
+                  </div>
                 </div>
               ) : (
-                <div className="mt-2 text-sm text-muted-foreground">No show date set yet.</div>
+                <p className="text-sm text-muted-foreground py-8 text-center italic">No meal plan currently assigned.</p>
               )}
-              <div className="pt-2">
-                <Link href="/athlete/calendar"><Button variant="ghost">Open calendar</Button></Link>
-              </div>
-            </CardContent>
+            </div>
+            <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+              <Link href="/athlete/meal-plan">
+                <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
+                  View Full Protocol
+                </Button>
+              </Link>
+            </div>
           </Card>
 
-          <Card>
-            <CardContent className="p-6 space-y-4">
-              <h3 className="font-bold text-lg flex items-center gap-2">
-                <ClipboardCheck className="w-5 h-5 text-primary" />
+          {/* Training Card */}
+          <Card className="border-border/50 bg-card hover:border-primary/30 transition-colors shadow-sm overflow-hidden flex flex-col">
+            <div className="p-6 space-y-4 flex-1">
+              <h3 className="font-display font-bold text-xl flex items-center gap-2">
+                <Activity className="w-5 h-5 text-primary" />
                 Today's Training
               </h3>
-              <div className="mt-2 text-sm text-muted-foreground">
-                {todaysPlan ? `${todaysPlan.day} • ${todaysPlan.focus || "Training"}` : "No training assigned today."}
+
+              <div className="bg-secondary/20 rounded-xl p-4 border border-border/30 mt-4">
+                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1">Workout Focus</p>
+                <p className="text-lg font-bold font-display uppercase tracking-tight">
+                  {todaysPlan ? todaysPlan.focus || "Weights Session" : "Active Recovery / Rest"}
+                </p>
+                {todaysPlan && (
+                  <p className="text-xs text-muted-foreground mt-1">Day {format(new Date(), 'EEEE')}</p>
+                )}
               </div>
+
               {todaysPlan && (
-                <label className="mt-2 flex items-center gap-2 rounded-md border border-border bg-secondary/20 px-3 py-2 text-sm">
-                  <input
-                    type="checkbox"
-                    checked={todaysCompletion?.completed || false}
-                    onChange={(event) => {
-                      if (!user) return;
-                      if (!todaysCompletion) {
-                        createCompletion.mutate({
-                          athleteId: user.id,
-                          dateKey: todayKey,
-                          dayKey: todayLabel,
+                <div className="mt-6">
+                  <label className={`flex items-center gap-3 rounded-xl border p-4 transition-all cursor-pointer group ${todaysCompletion?.completed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-secondary/40 border-border/50 hover:border-primary/50'}`}>
+                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${todaysCompletion?.completed ? 'bg-emerald-500 border-emerald-500' : 'border-muted-foreground group-hover:border-primary'}`}>
+                      {todaysCompletion?.completed && <ClipboardCheck className="w-4 h-4 text-white" />}
+                    </div>
+                    <input
+                      type="checkbox"
+                      className="hidden"
+                      checked={todaysCompletion?.completed || false}
+                      onChange={(event) => {
+                        if (!user) return;
+                        if (!todaysCompletion) {
+                          createCompletion.mutate({
+                            athleteId: user.id,
+                            dateKey: todayKey,
+                            dayKey: todayLabel,
+                            completed: event.target.checked,
+                          });
+                          return;
+                        }
+                        updateCompletion.mutate({
+                          id: todaysCompletion.id,
                           completed: event.target.checked,
                         });
-                        return;
-                      }
-                      updateCompletion.mutate({
-                        id: todaysCompletion.id,
-                        completed: event.target.checked,
-                      });
-                    }}
-                  />
-                  Mark workout complete
-                </label>
+                      }}
+                    />
+                    <span className="text-sm font-bold uppercase tracking-wide">
+                      {todaysCompletion?.completed ? 'Workout Completed' : 'Mark as Complete'}
+                    </span>
+                  </label>
+                </div>
               )}
-            </CardContent>
+            </div>
+            <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+              <Link href="/athlete/workout-plan">
+                <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
+                  Full Workout Library
+                </Button>
+              </Link>
+            </div>
+          </Card>
+
+          {/* Progress Card */}
+          <Card className="border-border/50 bg-card hover:border-primary/30 transition-colors shadow-sm overflow-hidden flex flex-col">
+            <div className="p-6 space-y-4 flex-1">
+              <h3 className="font-display font-bold text-xl flex items-center gap-2">
+                <BarChart3 className="w-5 h-5 text-primary" />
+                Latest Metrics
+              </h3>
+
+              {last ? (
+                <div className="space-y-4 mt-4">
+                  <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border/30">
+                    <span className="text-xs text-muted-foreground font-bold uppercase">Morning Weight</span>
+                    <span className="text-lg font-bold font-display text-primary">{last.weight}</span>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border/30">
+                    <span className="text-xs text-muted-foreground font-bold uppercase">Sleep Quality</span>
+                    <div className="flex gap-1">
+                      {[1, 2, 3, 4, 5].map(i => (
+                        <div key={i} className={`w-3 h-1.5 rounded-full ${i <= (last.sleep || 0) / 2 ? 'bg-primary' : 'bg-muted'}`} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border/30">
+                    <span className="text-xs text-muted-foreground font-bold uppercase">Stress Level</span>
+                    <span className="text-xs font-bold uppercase">{last.stress}/10</span>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <MessageSquare className="w-12 h-12 text-muted-foreground opacity-20 mx-auto mb-2" />
+                  <p className="text-sm text-muted-foreground italic">No metrics logged this week.</p>
+                </div>
+              )}
+            </div>
+            <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+              <Link href="/athlete/history">
+                <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
+                  View Full History
+                </Button>
+              </Link>
+            </div>
           </Card>
         </div>
       </div>
     </LayoutAthlete>
   );
 }
+
+import { ChevronRight } from "lucide-react";

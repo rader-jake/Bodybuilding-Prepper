@@ -6,6 +6,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Redirect, Link } from "wouter";
+import LayoutCoach from "@/components/LayoutCoach";
 
 export default function CoachCheckins() {
   const { user } = useAuth();
@@ -24,20 +25,14 @@ export default function CoachCheckins() {
   if (!user || user.role !== "coach") return <Redirect to="/" />;
 
   return (
-    <div className="min-h-screen bg-background pb-20">
-      <header className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border/50">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between text-left">
+    <LayoutCoach title="Check-ins Queue">
+      <div className="space-y-4">
+        <div className="hidden md:flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-display uppercase tracking-wide">Check-ins Queue</h1>
+            <h1 className="text-2xl font-display uppercase tracking-wide">Check-ins Queue</h1>
             <p className="text-xs text-muted-foreground">Review new submissions and follow up.</p>
           </div>
-          <Link href="/dashboard">
-            <Button variant="ghost" className="self-start">Back to dashboard</Button>
-          </Link>
         </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-4">
         {isLoading && <div className="text-sm text-muted-foreground">Loading check-ins...</div>}
         {!isLoading && (!checkins || checkins.length === 0) && (
           <Card>
@@ -71,7 +66,7 @@ export default function CoachCheckins() {
             </Card>
           );
         })}
-      </main>
-    </div>
+      </div>
+    </LayoutCoach>
   );
 }
