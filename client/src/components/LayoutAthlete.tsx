@@ -16,8 +16,16 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
   return (
     <div className="min-h-screen bg-background text-foreground">
       <div className="md:flex">
-        <aside className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 p-4 border-r border-border bg-card">
-          <div className="flex items-center gap-3 px-2 py-3">
+        <aside className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 px-4 py-6 border-r border-border bg-card">
+          <div className="px-2 mb-8">
+            <h1 className="text-2xl font-sans tracking-tight">
+              <span className="font-normal text-foreground">Meta</span>
+              <span className="font-bold text-foreground">Lifts</span>
+              <span className="text-primary ml-1">.</span>
+            </h1>
+          </div>
+
+          <div className="flex items-center gap-3 px-2 py-3 mb-2">
             <Avatar>
               {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="Athlete avatar" /> : null}
               <AvatarFallback>{avatarFallback}</AvatarFallback>
@@ -103,7 +111,7 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
                 >
                   {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
                 </button>
-                <div className="text-xl sm:text-2xl font-display font-bold tracking-tight text-primary truncate">Prep Coach</div>
+                <div className="text-xl sm:text-2xl font-sans font-bold tracking-tight text-primary truncate">MetaLifts</div>
               </div>
               <div className="flex items-center gap-3">
                 <button
@@ -123,7 +131,7 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
               <nav id="athlete-mobile-menu" className="md:hidden fixed left-0 top-0 z-40 h-screen w-screen bg-background">
                 <div className="h-full w-full px-4 py-6 flex flex-col">
                   <div className="flex items-center justify-between mb-6">
-                    <div className="text-xl font-display font-bold text-primary">Prep Coach</div>
+                    <div className="text-xl font-sans font-bold text-primary">MetaLifts</div>
                     <button
                       type="button"
                       className="inline-flex items-center justify-center rounded-md border border-border/60 p-2 text-muted-foreground"

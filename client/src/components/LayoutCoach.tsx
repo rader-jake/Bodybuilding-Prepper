@@ -29,8 +29,16 @@ export default function LayoutCoach({ children, title = "Coach Dashboard" }: { c
         <div className="min-h-screen bg-background text-foreground">
             <div className="md:flex">
                 {/* Desktop Sidebar */}
-                <aside className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 p-4 border-r border-border bg-card">
-                    <div className="flex items-center gap-3 px-2 py-3">
+                <aside className="hidden md:flex md:flex-col w-72 h-screen sticky top-0 px-4 py-6 border-r border-border bg-card">
+                    <div className="px-2 mb-8">
+                        <h1 className="text-2xl font-sans tracking-tight">
+                            <span className="font-normal text-foreground">Meta</span>
+                            <span className="font-bold text-foreground">Lifts</span>
+                            <span className="text-primary ml-1">.</span>
+                        </h1>
+                    </div>
+
+                    <div className="flex items-center gap-3 px-2 py-3 mb-2">
                         <Avatar>
                             {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="Coach avatar" /> : null}
                             <AvatarFallback>{avatarFallback}</AvatarFallback>

@@ -33,18 +33,16 @@ export default function AthleteDashboard() {
     <LayoutAthlete>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
         {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary/20 via-background to-background border border-primary/10 p-6 sm:p-8 shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/10 rounded-full blur-3xl -mr-32 -mt-32" />
-
+        <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-sm">
           <div className="relative z-10 flex flex-col md:items-center md:flex-row justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary text-[10px] font-bold uppercase tracking-widest text-primary-foreground">
+                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20">
                   {user?.currentPhase || "Off-season"}
                 </span>
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Training Phase</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-display font-bold uppercase tracking-tight">
+              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
                 Welcome, {user?.displayName || user?.username}
               </h2>
               <p className="text-muted-foreground text-sm sm:text-base max-w-lg">
@@ -72,7 +70,7 @@ export default function AthleteDashboard() {
             <div className="mt-8 pt-6 border-t border-primary/10 flex items-center gap-4">
               <div className="flex flex-col">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contest Countdown</span>
-                <span className="text-lg font-display font-bold text-primary uppercase">
+                <span className="text-lg font-bold text-primary tracking-tight">
                   {user.nextShowName} • {formatDistanceToNow(new Date(user.nextShowDate), { addSuffix: false })} to go
                 </span>
               </div>

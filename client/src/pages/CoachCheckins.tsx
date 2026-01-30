@@ -29,7 +29,7 @@ export default function CoachCheckins() {
       <div className="space-y-4">
         <div className="hidden md:flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-display uppercase tracking-wide">Check-ins Queue</h1>
+            <h1 className="text-3xl font-bold tracking-tight">Check-ins Queue</h1>
             <p className="text-xs text-muted-foreground">Review new submissions and follow up.</p>
           </div>
         </div>

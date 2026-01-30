@@ -84,22 +84,22 @@ export default function CoachDashboard() {
     <LayoutCoach>
       <div className="space-y-8">
         <div className="hidden md:flex items-center justify-between">
-          <h1 className="text-2xl font-display uppercase tracking-wide">Coach Dashboard</h1>
+          <h1 className="text-3xl font-bold tracking-tight">Coach Dashboard</h1>
         </div>
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           <Card className="bg-secondary/10 border-border/50 backdrop-blur-sm">
             <CardContent className="p-6">
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Total Roster</p>
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Total Roster</p>
               <div className="flex items-end gap-2 mt-2">
-                <p className="text-4xl font-display font-bold leading-none">{athletes?.length || 0}</p>
+                <p className="text-3xl font-bold leading-none">{athletes?.length || 0}</p>
                 <p className="text-xs text-muted-foreground mb-1">Athletes</p>
               </div>
             </CardContent>
           </Card>
           <Card className="bg-orange-500/5 border-orange-500/20 backdrop-blur-sm">
             <CardContent className="p-6">
-              <p className="text-[10px] font-bold text-orange-500/80 uppercase tracking-[0.2em]">Attention Required</p>
+              <p className="text-xs font-medium text-muted-foreground tracking-wider">Attention Required</p>
               <div className="flex items-end gap-2 mt-2">
                 <p className="text-4xl font-display font-bold leading-none text-orange-500">{pendingCheckins}</p>
                 <p className="text-xs text-orange-500/60 mb-1">Pending Check-ins</p>
@@ -108,7 +108,7 @@ export default function CoachDashboard() {
           </Card>
           <Card className="bg-emerald-500/5 border-emerald-500/20 backdrop-blur-sm">
             <CardContent className="p-6">
-              <p className="text-[10px] font-bold text-emerald-500/80 uppercase tracking-[0.2em]">Weekly Compliance</p>
+              <p className="text-xs font-medium text-muted-foreground tracking-wider">Weekly Compliance</p>
               <div className="flex items-end gap-2 mt-2">
                 <p className="text-4xl font-display font-bold leading-none text-emerald-500">
                   {athletes?.length ? Math.round((athletesWithCheckin.size / athletes.length) * 100) : 0}%
@@ -122,22 +122,22 @@ export default function CoachDashboard() {
         {/* Roster Section */}
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-            <h2 className="text-2xl font-display uppercase tracking-wide flex items-center gap-2">
+            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <Users className="w-6 h-6 text-primary" />
               Active Roster
             </h2>
 
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <div className="flex bg-secondary/20 p-1 rounded-lg border border-border/50">
+              <div className="flex bg-secondary/50 p-1 rounded-lg border border-border/50">
                 <button
                   onClick={() => setFilter('all')}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${filter === 'all' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'all' ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   All
                 </button>
                 <button
                   onClick={() => setFilter('needs-attention')}
-                  className={`px-3 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${filter === 'needs-attention' ? 'bg-background text-orange-500 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                  className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${filter === 'needs-attention' ? 'bg-background text-orange-500 shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
                 >
                   Pending
                 </button>

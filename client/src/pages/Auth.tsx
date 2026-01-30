@@ -34,8 +34,8 @@ export default function AuthPage() {
             <Dumbbell className="w-8 h-8 text-primary" />
           </div>
           <div className="space-y-1">
-            <CardTitle className="text-3xl font-display uppercase tracking-tight">Iron OS</CardTitle>
-            <CardDescription className="text-muted-foreground font-medium">Prep Coach Operating System</CardDescription>
+            <CardTitle className="text-3xl font-display uppercase tracking-tight">MetaLifts</CardTitle>
+            <CardDescription className="text-muted-foreground font-medium">For serious bodybuilders</CardDescription>
           </div>
         </CardHeader>
 
@@ -78,11 +78,11 @@ export default function AuthPage() {
                   <TabsTrigger value="athlete" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20">Athlete</TabsTrigger>
                   <TabsTrigger value="coach" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20">Coach</TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="athlete">
                   <form onSubmit={handleRegister('athlete')} className="space-y-4">
-                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30"/>
-                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30"/>
+                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30" />
+                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30" />
                     <Button type="submit" className="w-full h-12 font-bold uppercase tracking-wider" disabled={isRegistering}>
                       {isRegistering ? "Creating..." : "Join Team"}
                     </Button>
@@ -91,12 +91,12 @@ export default function AuthPage() {
 
                 <TabsContent value="coach">
                   <form onSubmit={handleRegister('coach')} className="space-y-4">
-                     <div className="p-3 mb-2 rounded bg-yellow-500/10 border border-yellow-500/20 flex gap-3">
-                       <ShieldCheck className="w-5 h-5 text-yellow-500 shrink-0" />
-                       <p className="text-xs text-yellow-200/80 leading-relaxed">Coach accounts have dashboard access to manage athletes.</p>
-                     </div>
-                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30"/>
-                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30"/>
+                    <div className="p-3 mb-2 rounded bg-yellow-500/10 border border-yellow-500/20 flex gap-3">
+                      <ShieldCheck className="w-5 h-5 text-yellow-500 shrink-0" />
+                      <p className="text-xs text-yellow-200/80 leading-relaxed">Coach accounts have dashboard access to manage athletes.</p>
+                    </div>
+                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30" />
+                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30" />
                     <Button type="submit" variant="outline" className="w-full h-12 font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary/10" disabled={isRegistering}>
                       {isRegistering ? "Creating..." : "Create Coach Profile"}
                     </Button>

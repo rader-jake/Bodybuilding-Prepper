@@ -1,54 +1,118 @@
-@import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Roboto+Flex:opsz,wght@8..144,300;8..144,400;8..144,500;8..144,600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 :root {
-  /* Dark Athletic Theme */
-  --font-display: 'Oswald', sans-serif;
-  --font-body: 'Roboto Flex', sans-serif;
+  /* MetaLifts Brand Tokens */
+  --ml-color-bg: 228 33% 3%;
+  /* #05060A */
+  --ml-color-surface: 221 25% 10%;
+  /* #141821 */
+  --ml-color-surface-alt: 222 26% 15%;
+  /* #1C2230 */
+  --ml-color-primary: 159 75% 51%;
+  /* #26E0A0 */
+  --ml-color-secondary: 262 83% 58%;
+  /* #7C3AED */
+  --ml-color-text: 210 20% 98%;
+  /* #F9FAFB */
+  --ml-color-text-muted: 218 11% 65%;
+  /* #9CA3AF */
+  --ml-color-border: 210 24% 16%;
+  /* #1F2933 */
+  --ml-color-error: 0 84% 60%;
+  /* #EF4444 */
+  --ml-color-warning: 45 93% 50%;
+  /* #F59E0B */
+  --ml-color-success: 142 71% 45%;
+  /* #22C55E */
 
-  --background: 220 15% 10%;
-  --foreground: 210 20% 98%;
+  --ml-font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
-  --card: 220 15% 13%;
-  --card-foreground: 210 20% 98%;
+  --ml-radius-sm: 6px;
+  --ml-radius-md: 10px;
+  --ml-radius-lg: 16px;
 
-  --popover: 220 15% 13%;
-  --popover-foreground: 210 20% 98%;
+  /* Tailwind/Shadcn Mapping */
+  --background: var(--ml-color-bg);
+  --foreground: var(--ml-color-text);
 
-  --primary: 199 89% 48%; /* Energetic Blue */
-  --primary-foreground: 0 0% 100%;
+  --card: var(--ml-color-surface);
+  --card-foreground: var(--ml-color-text);
+  --card-border: var(--ml-color-border);
 
-  --secondary: 220 15% 18%;
+  --popover: var(--ml-color-surface);
+  --popover-foreground: var(--ml-color-text);
+  --popover-border: var(--ml-color-border);
+
+  --primary: var(--ml-color-primary);
+  --primary-foreground: 228 33% 3%;
+  /* Dark text on teal */
+  --primary-border: var(--ml-color-primary);
+
+  --secondary: var(--ml-color-surface-alt);
   --secondary-foreground: 210 20% 98%;
+  --secondary-border: var(--ml-color-border);
 
-  --muted: 217 19% 20%;
-  --muted-foreground: 215 20% 65%;
+  --muted: var(--ml-color-surface-alt);
+  --muted-foreground: var(--ml-color-text-muted);
+  --muted-border: var(--ml-color-border);
 
-  --accent: 199 89% 48%;
-  --accent-foreground: 0 0% 100%;
+  --accent: var(--ml-color-secondary);
+  --accent-foreground: 210 20% 98%;
+  --accent-border: var(--ml-color-secondary);
 
-  --destructive: 0 62% 30%;
+  --destructive: var(--ml-color-error);
   --destructive-foreground: 210 20% 98%;
+  --destructive-border: var(--ml-color-error);
 
-  --border: 217 19% 20%;
-  --input: 217 19% 20%;
-  --ring: 199 89% 48%;
+  --border: var(--ml-color-border);
+  --input: var(--ml-color-surface-alt);
+  --ring: var(--ml-color-primary);
 
-  --radius: 0.5rem;
+  --radius: var(--ml-radius-md);
+
+  /* Font mappings */
+  --font-sans: var(--ml-font-sans);
+  --font-display: var(--ml-font-sans);
+  /* Unified font per branding */
+  --font-body: var(--ml-font-sans);
 }
 
 @layer base {
   * {
     @apply border-border;
   }
+
   body {
-    @apply bg-background text-foreground antialiased font-body;
+    @apply bg-background text-foreground antialiased font-sans;
   }
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-display tracking-tight uppercase;
+
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    @apply font-display tracking-tight text-foreground;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 600;
+    /* Semi-bold */
+  }
+
+  h2 {
+    font-size: 24px;
+    font-weight: 600;
+  }
+
+  h3 {
+    font-size: 20px;
+    font-weight: 500;
   }
 }
 
@@ -56,17 +120,22 @@
 ::-webkit-scrollbar {
   width: 8px;
 }
+
 ::-webkit-scrollbar-track {
   @apply bg-background;
 }
+
 ::-webkit-scrollbar-thumb {
   @apply bg-muted rounded-full;
 }
+
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-primary/50;
 }
 
-/* Form inputs overrides for "Athletic Dark" feel */
-input, textarea, select {
-  @apply bg-secondary/50 border-transparent focus:border-primary/50 focus:ring-1 focus:ring-primary/50 transition-all duration-200;
+/* Inputs / Forms */
+input,
+textarea,
+select {
+  @apply rounded-[var(--ml-radius-md)] bg-input border border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 outline-none;
 }
