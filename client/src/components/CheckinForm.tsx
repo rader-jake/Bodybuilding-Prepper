@@ -12,6 +12,7 @@ import { useState } from "react";
 import { z } from "zod";
 import { POSE_KEYS, type PoseKey } from "@/lib/poses";
 import { api } from "@shared/routes";
+import { apiFetch } from "@/lib/apiFetch";
 
 interface CheckinFormProps {
   onSubmit: (data: InsertCheckin) => void;
@@ -56,18 +57,18 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
 
   const uploadPosePhoto = async (file: File) => {
     console.log(`Starting upload for file: ${file.name}`);
-    const signatureRes = await fetch(api.cloudinary.sign.path, {
+
+    // Use apiFetch to get the signature (handles JWT)
+    const { signature, timestamp, cloudName, apiKey } = await apiFetch<{
+      signature: string;
+      timestamp: number;
+      cloudName: string;
+      apiKey: string;
+    }>(api.cloudinary.sign.path, {
       method: api.cloudinary.sign.method,
-      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ folder: "pose-photos" }),
     });
-    if (!signatureRes.ok) {
-      const err = await signatureRes.json().catch(() => ({ message: "Failed to get signature" }));
-      console.error("Cloudinary signature failed:", err);
-      throw new Error(`Signature failed: ${err.message}`);
-    }
 
-    const { signature, timestamp, cloudName, apiKey } = await signatureRes.json();
     console.log(`Received signature, uploading to cloudName: ${cloudName}`);
 
     const formData = new FormData();

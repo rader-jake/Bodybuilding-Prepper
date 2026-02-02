@@ -2,6 +2,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type InsertUser, type User } from "@shared/routes";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch, ApiError } from "@/lib/apiFetch";
+import { setToken, clearToken } from "@/lib/authToken";
 
 export function useAuth() {
   const queryClient = useQueryClient();
@@ -11,28 +13,29 @@ export function useAuth() {
   const { data: user, isLoading, error } = useQuery({
     queryKey: [api.auth.me.path],
     queryFn: async () => {
-      const res = await fetch(api.auth.me.path);
-      if (res.status === 401) return null;
-      if (!res.ok) throw new Error("Failed to fetch user");
-      return await res.json() as User;
+      try {
+        const user = await apiFetch<User>(api.auth.me.path);
+        return user;
+      } catch (err) {
+        if (err instanceof ApiError && err.status === 401) {
+          return null;
+        }
+        throw err;
+      }
     },
     retry: false,
   });
 
   const loginMutation = useMutation({
     mutationFn: async (credentials: Pick<InsertUser, "username" | "password">) => {
-      const res = await fetch(api.auth.login.path, {
+      const response = await apiFetch<{ user: User; token: string }>(api.auth.login.path, {
         method: api.auth.login.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(credentials),
       });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Login failed");
-      }
-      return await res.json() as User;
+      return response;
     },
-    onSuccess: (user) => {
+    onSuccess: ({ user, token }) => {
+      setToken(token);
       queryClient.setQueryData([api.auth.me.path], user);
       toast({ title: "Welcome back", description: "Successfully logged in", duration: 2000 });
       if (user.role === "coach") setLocation("/dashboard");
@@ -49,20 +52,18 @@ export function useAuth() {
 
   const registerMutation = useMutation({
     mutationFn: async (data: InsertUser) => {
-      const res = await fetch(api.auth.register.path, {
+      const response = await apiFetch<{ user: User; token: string }>(api.auth.register.path, {
         method: api.auth.register.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Registration failed");
-      }
-      return await res.json() as User;
+      return response;
     },
-    onSuccess: () => {
-      toast({ title: "Account created", description: "Please log in now" });
-      setLocation("/"); // Go to login
+    onSuccess: ({ user, token }) => {
+      setToken(token);
+      queryClient.setQueryData([api.auth.me.path], user);
+      toast({ title: "Account created", description: "Welcome to MetaLifts" });
+      if (user.role === "coach") setLocation("/dashboard");
+      else setLocation("/athlete/dashboard");
     },
     onError: (error: Error) => {
       toast({
@@ -75,9 +76,15 @@ export function useAuth() {
 
   const logoutMutation = useMutation({
     mutationFn: async () => {
-      await fetch(api.auth.logout.path, { method: api.auth.logout.method });
+      // Best effort network logout, but primarily local
+      try {
+        await apiFetch(api.auth.logout.path, { method: api.auth.logout.method });
+      } catch (e) {
+        // ignore error
+      }
     },
     onSuccess: () => {
+      clearToken();
       queryClient.setQueryData([api.auth.me.path], null);
       setLocation("/");
     },

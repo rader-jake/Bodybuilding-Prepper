@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, type InsertUser, type User } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/apiFetch";
 
 export function useAthletes() {
   const queryClient = useQueryClient();
@@ -9,26 +10,17 @@ export function useAthletes() {
   const { data: athletes, isLoading } = useQuery({
     queryKey: [api.athletes.list.path],
     queryFn: async () => {
-      const res = await fetch(api.athletes.list.path);
-      if (!res.ok) throw new Error("Failed to fetch athletes");
-      return await res.json() as User[];
+      return await apiFetch<User[]>(api.athletes.list.path);
     },
   });
 
   const createAthlete = useMutation({
     mutationFn: async (data: InsertUser) => {
       console.log(`Attempting to create athlete: ${data.username}`);
-      const res = await fetch(api.athletes.create.path, {
+      return await apiFetch<User>(api.athletes.create.path, {
         method: api.athletes.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) {
-        const error = await res.json();
-        console.error("Athlete creation failed:", error);
-        throw new Error(error.message || "Failed to create athlete");
-      }
-      return await res.json() as User;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.athletes.list.path] });
@@ -42,16 +34,10 @@ export function useAthletes() {
 
   const updateAthlete = useMutation({
     mutationFn: async ({ id, ...data }: { id: number } & Partial<User>) => {
-      const res = await fetch(api.athletes.update.path.replace(":id", String(id)), {
+      return await apiFetch<User>(api.athletes.update.path.replace(":id", String(id)), {
         method: api.athletes.update.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) {
-        const error = await res.json();
-        throw new Error(error.message || "Update failed");
-      }
-      return await res.json() as User;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.athletes.list.path] });

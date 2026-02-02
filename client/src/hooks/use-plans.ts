@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api, type NutritionPlan, type Protocol, type TrainingBlock, type WeeklyTrainingPlan, type HealthMarker, type TrainingCompletion } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/apiFetch";
 
 export function useTrainingBlocks(athleteId?: number) {
   const queryClient = useQueryClient();
@@ -10,22 +11,17 @@ export function useTrainingBlocks(athleteId?: number) {
     queryKey: [api.trainingBlocks.list.path, athleteId],
     queryFn: async () => {
       const url = athleteId ? `${api.trainingBlocks.list.path}?athleteId=${athleteId}` : api.trainingBlocks.list.path;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch training blocks");
-      return await res.json() as TrainingBlock[];
+      return await apiFetch<TrainingBlock[]>(url);
     },
     enabled: !!athleteId,
   });
 
   const createTrainingBlock = useMutation({
     mutationFn: async (data: Partial<TrainingBlock>) => {
-      const res = await fetch(api.trainingBlocks.create.path, {
+      return await apiFetch<TrainingBlock>(api.trainingBlocks.create.path, {
         method: api.trainingBlocks.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create training block");
-      return await res.json() as TrainingBlock;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.trainingBlocks.list.path] });
@@ -44,22 +40,17 @@ export function useWeeklyTrainingPlans(athleteId?: number) {
     queryKey: [api.weeklyTrainingPlans.list.path, athleteId],
     queryFn: async () => {
       const url = athleteId ? `${api.weeklyTrainingPlans.list.path}?athleteId=${athleteId}` : api.weeklyTrainingPlans.list.path;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch weekly plans");
-      return await res.json() as WeeklyTrainingPlan[];
+      return await apiFetch<WeeklyTrainingPlan[]>(url);
     },
     enabled: !!athleteId,
   });
 
   const createWeeklyPlan = useMutation({
     mutationFn: async (data: Partial<WeeklyTrainingPlan>) => {
-      const res = await fetch(api.weeklyTrainingPlans.create.path, {
+      return await apiFetch<WeeklyTrainingPlan>(api.weeklyTrainingPlans.create.path, {
         method: api.weeklyTrainingPlans.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create weekly plan");
-      return await res.json() as WeeklyTrainingPlan;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.weeklyTrainingPlans.list.path] });
@@ -78,22 +69,17 @@ export function useNutritionPlans(athleteId?: number) {
     queryKey: [api.nutritionPlans.list.path, athleteId],
     queryFn: async () => {
       const url = athleteId ? `${api.nutritionPlans.list.path}?athleteId=${athleteId}` : api.nutritionPlans.list.path;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch nutrition plans");
-      return await res.json() as NutritionPlan[];
+      return await apiFetch<NutritionPlan[]>(url);
     },
     enabled: !!athleteId,
   });
 
   const createNutritionPlan = useMutation({
     mutationFn: async (data: Partial<NutritionPlan>) => {
-      const res = await fetch(api.nutritionPlans.create.path, {
+      return await apiFetch<NutritionPlan>(api.nutritionPlans.create.path, {
         method: api.nutritionPlans.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create nutrition plan");
-      return await res.json() as NutritionPlan;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.nutritionPlans.list.path] });
@@ -112,22 +98,17 @@ export function useProtocols(athleteId?: number) {
     queryKey: [api.protocols.list.path, athleteId],
     queryFn: async () => {
       const url = athleteId ? `${api.protocols.list.path}?athleteId=${athleteId}` : api.protocols.list.path;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch protocols");
-      return await res.json() as Protocol[];
+      return await apiFetch<Protocol[]>(url);
     },
     enabled: !!athleteId,
   });
 
   const createProtocol = useMutation({
     mutationFn: async (data: Partial<Protocol>) => {
-      const res = await fetch(api.protocols.create.path, {
+      return await apiFetch<Protocol>(api.protocols.create.path, {
         method: api.protocols.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create protocol");
-      return await res.json() as Protocol;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.protocols.list.path] });
@@ -146,22 +127,17 @@ export function useHealthMarkers(athleteId?: number) {
     queryKey: [api.healthMarkers.list.path, athleteId],
     queryFn: async () => {
       const url = athleteId ? `${api.healthMarkers.list.path}?athleteId=${athleteId}` : api.healthMarkers.list.path;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch health markers");
-      return await res.json() as HealthMarker[];
+      return await apiFetch<HealthMarker[]>(url);
     },
     enabled: !!athleteId,
   });
 
   const createHealthMarker = useMutation({
     mutationFn: async (data: Partial<HealthMarker>) => {
-      const res = await fetch(api.healthMarkers.create.path, {
+      return await apiFetch<HealthMarker>(api.healthMarkers.create.path, {
         method: api.healthMarkers.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to create health marker");
-      return await res.json() as HealthMarker;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.healthMarkers.list.path] });
@@ -185,22 +161,17 @@ export function useTrainingCompletions(athleteId?: number, dateKey?: string) {
       const url = params.toString()
         ? `${api.trainingCompletions.list.path}?${params.toString()}`
         : api.trainingCompletions.list.path;
-      const res = await fetch(url);
-      if (!res.ok) throw new Error("Failed to fetch training completions");
-      return await res.json() as TrainingCompletion[];
+      return await apiFetch<TrainingCompletion[]>(url);
     },
     enabled: !!athleteId,
   });
 
   const createCompletion = useMutation({
     mutationFn: async (data: Partial<TrainingCompletion>) => {
-      const res = await fetch(api.trainingCompletions.create.path, {
+      return await apiFetch<TrainingCompletion>(api.trainingCompletions.create.path, {
         method: api.trainingCompletions.create.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to save completion");
-      return await res.json() as TrainingCompletion;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.trainingCompletions.list.path] });
@@ -210,13 +181,10 @@ export function useTrainingCompletions(athleteId?: number, dateKey?: string) {
 
   const updateCompletion = useMutation({
     mutationFn: async ({ id, ...data }: Partial<TrainingCompletion> & { id: number }) => {
-      const res = await fetch(api.trainingCompletions.update.path.replace(":id", String(id)), {
+      return await apiFetch<TrainingCompletion>(api.trainingCompletions.update.path.replace(":id", String(id)), {
         method: api.trainingCompletions.update.method,
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(data),
       });
-      if (!res.ok) throw new Error("Failed to update completion");
-      return await res.json() as TrainingCompletion;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.trainingCompletions.list.path] });

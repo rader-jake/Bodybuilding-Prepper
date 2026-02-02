@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { api, buildUrl, type InsertMessage, type Message } from "@shared/routes";
 import { useToast } from "@/hooks/use-toast";
+import { apiFetch } from "@/lib/apiFetch";
 
 export function useMessages(otherUserId?: number) {
     const queryClient = useQueryClient();
@@ -13,9 +14,7 @@ export function useMessages(otherUserId?: number) {
         queryFn: async () => {
             if (!otherUserId) return [];
             const url = buildUrl(api.messages.list.path, { otherUserId });
-            const res = await fetch(url);
-            if (!res.ok) throw new Error("Failed to fetch messages");
-            return await res.json() as Message[];
+            return await apiFetch<Message[]>(url);
         },
         enabled: !!otherUserId,
         refetchInterval: 5000, // Basic polling for messages
@@ -24,17 +23,10 @@ export function useMessages(otherUserId?: number) {
     const sendMessage = useMutation({
         mutationFn: async (data: InsertMessage) => {
             console.log(`Sending message to ${data.receiverId}`);
-            const res = await fetch(api.messages.send.path, {
+            return await apiFetch<Message>(api.messages.send.path, {
                 method: api.messages.send.method,
-                headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(data),
             });
-            if (!res.ok) {
-                const error = await res.json().catch(() => ({ message: "Unknown error" }));
-                console.error("Failed to send message:", error);
-                throw new Error(error.message || "Failed to send message");
-            }
-            return await res.json() as Message;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey });
@@ -48,11 +40,9 @@ export function useMessages(otherUserId?: number) {
     const markRead = useMutation({
         mutationFn: async (id: number) => {
             const url = buildUrl(api.messages.markRead.path, { id });
-            const res = await fetch(url, {
+            return await apiFetch<Message>(url, {
                 method: api.messages.markRead.method,
             });
-            if (!res.ok) throw new Error("Failed to mark message as read");
-            return await res.json() as Message;
         },
         onSuccess: () => {
             queryClient.invalidateQueries({ queryKey });

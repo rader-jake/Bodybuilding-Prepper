@@ -13,6 +13,7 @@ import { Redirect, useLocation } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { api, type TrainingCompletion } from "@shared/routes";
 import LayoutCoach from "@/components/LayoutCoach";
+import { apiFetch } from "@/lib/apiFetch";
 
 export default function CoachDashboard() {
   const { user, logout } = useAuth();
@@ -23,9 +24,8 @@ export default function CoachDashboard() {
   const { data: completions } = useQuery({
     queryKey: [api.trainingCompletions.list.path, todayKey],
     queryFn: async () => {
-      const res = await fetch(`${api.trainingCompletions.list.path}?dateKey=${todayKey}`);
-      if (!res.ok) throw new Error("Failed to fetch completions");
-      return await res.json() as TrainingCompletion[];
+      const url = `${api.trainingCompletions.list.path}?dateKey=${todayKey}`;
+      return await apiFetch<TrainingCompletion[]>(url);
     },
     enabled: !!user,
   });
@@ -33,9 +33,7 @@ export default function CoachDashboard() {
   const { data: coachCheckins } = useQuery({
     queryKey: [api.checkins.queue.path],
     queryFn: async () => {
-      const res = await fetch(api.checkins.queue.path);
-      if (!res.ok) throw new Error("Failed to fetch check-ins");
-      return await res.json() as Array<{ athleteId: number; date: string }>;
+      return await apiFetch<Array<{ athleteId: number; date: string }>>(api.checkins.queue.path);
     },
     enabled: !!user,
   });

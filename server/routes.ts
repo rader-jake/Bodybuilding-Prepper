@@ -1,19 +1,19 @@
-import type { Express } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import type { Server } from "http";
 import { storage } from "./storage";
 import { log } from "./index";
 import { api } from "@shared/routes";
 import { z } from "zod";
-import session from "express-session";
 import passport from "passport";
 import { Strategy as LocalStrategy } from "passport-local";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import crypto from "crypto";
 import { promisify } from "util";
-import MemoryStore from "memorystore";
+import jwt from "jsonwebtoken";
+import cors from "cors";
 
 const scryptAsync = promisify(scrypt);
-const MemoryStoreSession = MemoryStore(session);
+const JWT_SECRET = process.env.JWT_SECRET || "default_dev_secret_do_not_use_in_prod";
 
 async function hashPassword(password: string) {
   const salt = randomBytes(16).toString("hex");
@@ -28,23 +28,38 @@ async function comparePasswords(supplied: string, stored: string) {
   return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Middleware to verify JWT and attach user to req
+const requireAuthJWT = async (req: Request, res: Response, next: NextFunction) => {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    return res.status(401).json({ message: "Unauthorized" });
+  }
+  const token = authHeader.split(" ")[1];
+  try {
+    const payload = jwt.verify(token, JWT_SECRET) as { id: number; role: string };
+    const user = await storage.getUser(payload.id);
+    if (!user) return res.status(401).json({ message: "Unauthorized" });
+    req.user = user;
+    next();
+  } catch (err) {
+    return res.status(401).json({ message: "Invalid token" });
+  }
+};
+
 export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
-  // Auth Setup
-  app.use(
-    session({
-      cookie: { maxAge: 86400000 },
-      store: new MemoryStoreSession({ checkPeriod: 86400000 }),
-      resave: false,
-      saveUninitialized: false,
-      secret: "keyboard cat",
-    })
-  );
+  // CORS Setup
+  app.use(cors({
+    origin: true, // Allow all origins for dev/capacitor
+    credentials: true, // Not strictly needed for JWT header but good practice
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }));
 
+  // Passport Init (for LocalStrategy convenience)
   app.use(passport.initialize());
-  app.use(passport.session());
 
   passport.use(
     new LocalStrategy(async (username, password, done) => {
@@ -60,15 +75,10 @@ export async function registerRoutes(
     })
   );
 
-  passport.serializeUser((user, done) => done(null, (user as any).id));
-  passport.deserializeUser(async (id: number, done) => {
-    try {
-      const user = await storage.getUser(id);
-      done(null, user);
-    } catch (err) {
-      done(err);
-    }
-  });
+  // Helper to sign token
+  const signToken = (user: any) => {
+    return jwt.sign({ id: user.id, role: user.role }, JWT_SECRET, { expiresIn: "30d" });
+  };
 
   // Auth Routes
   app.post(api.auth.register.path, async (req, res) => {
@@ -79,10 +89,11 @@ export async function registerRoutes(
 
       const hashedPassword = await hashPassword(input.password);
       const user = await storage.createUser({ ...input, password: hashedPassword });
-      req.login(user, (err) => {
-        if (err) throw err;
-        res.status(201).json(user);
-      });
+
+      const token = signToken(user);
+      // Remove password from response
+      const { password: _, ...safeUser } = user as any;
+      res.status(201).json({ user: safeUser, token });
     } catch (err) {
       if (err instanceof z.ZodError) {
         res.status(400).json({ message: err.errors[0].message });
@@ -92,21 +103,23 @@ export async function registerRoutes(
     }
   });
 
-  app.post(api.auth.login.path, passport.authenticate("local"), (req, res) => {
-    res.json(req.user);
+  app.post(api.auth.login.path, passport.authenticate("local", { session: false }), (req, res) => {
+    const user = req.user as any;
+    const token = signToken(user);
+    const { password: _, ...safeUser } = user;
+    res.json({ user: safeUser, token });
   });
 
   app.post(api.auth.logout.path, (req, res) => {
-    req.logout(() => res.sendStatus(200));
+    // Stateless logout - client discards token
+    res.sendStatus(200);
   });
 
-  app.get(api.auth.me.path, (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.auth.me.path, requireAuthJWT, (req, res) => {
     res.json(req.user);
   });
 
-  app.patch(api.auth.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.auth.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.auth.update.input.parse(req.body);
     const updates = {
@@ -122,8 +135,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.post(api.cloudinary.sign.path, (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.cloudinary.sign.path, requireAuthJWT, (req, res) => {
     let cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     let apiKey = process.env.CLOUDINARY_API_KEY;
     let apiSecret = process.env.CLOUDINARY_API_SECRET;
@@ -167,17 +179,15 @@ export async function registerRoutes(
   });
 
   // App Routes
-  app.get(api.athletes.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.athletes.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== 'coach') return res.sendStatus(403);
     const athletes = await storage.getAthletesByCoach(user.id);
     res.json(athletes);
   });
 
-  app.post(api.athletes.create.path, async (req, res) => {
+  app.post(api.athletes.create.path, requireAuthJWT, async (req, res) => {
     // Coach adding an athlete account
-    if (!req.isAuthenticated()) return res.sendStatus(401);
     const user = req.user as any;
     if (user.role !== 'coach') return res.sendStatus(403);
 
@@ -204,8 +214,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.athletes.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.athletes.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
 
@@ -228,8 +237,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.checkins.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.checkins.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
 
@@ -244,16 +252,14 @@ export async function registerRoutes(
     res.json(checkins);
   });
 
-  app.get(api.checkins.queue.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.checkins.queue.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const checkins = await storage.getCheckinsForCoach(user.id);
     res.json(checkins);
   });
 
-  app.post(api.checkins.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.checkins.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     // Only athletes create checkins for themselves for now
     const input = api.checkins.create.input.parse(req.body);
@@ -261,8 +267,7 @@ export async function registerRoutes(
     res.status(201).json(checkin);
   });
 
-  app.patch(api.checkins.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.checkins.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const checkinId = Number(req.params.id);
     const checkin = await storage.getCheckin(checkinId);
@@ -276,8 +281,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.trainingBlocks.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.trainingBlocks.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
     if (user.role === "athlete" && athleteId !== user.id) return res.sendStatus(403);
@@ -289,8 +293,7 @@ export async function registerRoutes(
     res.json(blocks);
   });
 
-  app.post(api.trainingBlocks.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.trainingBlocks.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const input = api.trainingBlocks.create.input.parse(req.body);
@@ -300,8 +303,7 @@ export async function registerRoutes(
     res.status(201).json(created);
   });
 
-  app.patch(api.trainingBlocks.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.trainingBlocks.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const input = api.trainingBlocks.update.input.parse(req.body);
@@ -314,8 +316,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.weeklyTrainingPlans.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.weeklyTrainingPlans.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
     if (user.role === "athlete" && athleteId !== user.id) return res.sendStatus(403);
@@ -328,8 +329,7 @@ export async function registerRoutes(
     res.json(plans);
   });
 
-  app.post(api.weeklyTrainingPlans.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.weeklyTrainingPlans.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const input = api.weeklyTrainingPlans.create.input.parse(req.body);
@@ -341,8 +341,7 @@ export async function registerRoutes(
     res.status(201).json(created);
   });
 
-  app.patch(api.weeklyTrainingPlans.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.weeklyTrainingPlans.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const input = api.weeklyTrainingPlans.update.input.parse(req.body);
@@ -357,8 +356,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.nutritionPlans.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.nutritionPlans.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
     if (user.role === "athlete" && athleteId !== user.id) return res.sendStatus(403);
@@ -371,8 +369,7 @@ export async function registerRoutes(
     res.json(plans);
   });
 
-  app.post(api.nutritionPlans.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.nutritionPlans.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const input = api.nutritionPlans.create.input.parse(req.body);
@@ -382,8 +379,7 @@ export async function registerRoutes(
     res.status(201).json(created);
   });
 
-  app.patch(api.nutritionPlans.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.nutritionPlans.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     if (user.role !== "coach") return res.sendStatus(403);
     const input = api.nutritionPlans.update.input.parse(req.body);
@@ -396,8 +392,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.protocols.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.protocols.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
     if (user.role === "athlete" && athleteId !== user.id) return res.sendStatus(403);
@@ -409,8 +404,7 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.post(api.protocols.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.protocols.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.protocols.create.input.parse(req.body);
     if (user.role === "athlete" && input.athleteId !== user.id) return res.sendStatus(403);
@@ -422,8 +416,7 @@ export async function registerRoutes(
     res.status(201).json(created);
   });
 
-  app.patch(api.protocols.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.protocols.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.protocols.update.input.parse(req.body);
     const protocol = await storage.getProtocol(Number(req.params.id));
@@ -437,8 +430,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.healthMarkers.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.healthMarkers.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
     if (user.role === "athlete" && athleteId !== user.id) return res.sendStatus(403);
@@ -450,8 +442,7 @@ export async function registerRoutes(
     res.json(markers);
   });
 
-  app.post(api.healthMarkers.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.healthMarkers.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.healthMarkers.create.input.parse(req.body);
     if (user.role === "athlete" && input.athleteId !== user.id) return res.sendStatus(403);
@@ -463,8 +454,7 @@ export async function registerRoutes(
     res.status(201).json(created);
   });
 
-  app.patch(api.healthMarkers.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.healthMarkers.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.healthMarkers.update.input.parse(req.body);
     const marker = await storage.getHealthMarker(Number(req.params.id));
@@ -478,8 +468,7 @@ export async function registerRoutes(
     res.json(updated);
   });
 
-  app.get(api.trainingCompletions.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.trainingCompletions.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const athleteId = req.query.athleteId ? Number(req.query.athleteId) : user.id;
     const dateKey = req.query.dateKey ? String(req.query.dateKey) : undefined;
@@ -498,8 +487,7 @@ export async function registerRoutes(
     res.json(items);
   });
 
-  app.post(api.trainingCompletions.create.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.trainingCompletions.create.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.trainingCompletions.create.input.parse(req.body);
     if (user.role === "athlete" && input.athleteId !== user.id) return res.sendStatus(403);
@@ -511,8 +499,7 @@ export async function registerRoutes(
     res.status(201).json(created);
   });
 
-  app.patch(api.trainingCompletions.update.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.trainingCompletions.update.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const input = api.trainingCompletions.update.input.parse(req.body);
     const completion = await storage.getTrainingCompletion(Number(req.params.id));
@@ -527,8 +514,7 @@ export async function registerRoutes(
   });
 
   // Message Routes
-  app.get(api.messages.list.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.get(api.messages.list.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const otherUserId = Number(req.params.otherUserId);
 
@@ -544,8 +530,7 @@ export async function registerRoutes(
     res.json(messages);
   });
 
-  app.post(api.messages.send.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.post(api.messages.send.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
 
     try {
@@ -571,8 +556,7 @@ export async function registerRoutes(
     }
   });
 
-  app.patch(api.messages.markRead.path, async (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
+  app.patch(api.messages.markRead.path, requireAuthJWT, async (req, res) => {
     const user = req.user as any;
     const messageId = Number(req.params.id);
     // Realistically we should check if the user is the receiver, but keeping it simple for now
