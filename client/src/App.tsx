@@ -3,6 +3,7 @@ import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
+import { SafeArea } from "@/components/layout/SafeArea";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/Auth";
 import CoachDashboard from "@/pages/CoachDashboard";
@@ -47,8 +48,10 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <Toaster />
-        <Router />
+        <SafeArea>
+          <Toaster />
+          <Router />
+        </SafeArea>
       </TooltipProvider>
     </QueryClientProvider>
   );

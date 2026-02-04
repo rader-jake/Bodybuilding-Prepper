@@ -3,6 +3,9 @@ import { getToken } from "./authToken";
 // Detect API URL from environment variables, fallback to empty string (relative path)
 // In Vite, use import.meta.env.VITE_API_URL
 export const baseURL = import.meta.env.VITE_API_URL || "";
+console.log("[apiFetch] base:", import.meta.env.VITE_API_URL);
+
+
 
 type FetchOptions = RequestInit & {
     // Add any custom options here if needed later

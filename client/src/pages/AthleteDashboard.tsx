@@ -7,7 +7,10 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow, format } from "date-fns";
 import { Link } from "wouter";
 import { useNutritionPlans, useWeeklyTrainingPlans, useTrainingCompletions } from "@/hooks/use-plans";
-import { Activity, BarChart3, CalendarDays, ClipboardCheck, MessageSquare, Utensils } from "lucide-react";
+import { Activity, BarChart3, CalendarDays, ClipboardCheck, MessageSquare, Utensils, ChevronRight, Info } from "lucide-react";
+import { TooltipHelper } from "@/components/ui/TooltipHelper";
+import { PREFERENCES_KEYS } from "@/lib/preferences";
+import { EmptyState } from "@/components/ui/EmptyState";
 
 export default function AthleteDashboard() {
   const { user } = useAuth();
@@ -26,19 +29,39 @@ export default function AthleteDashboard() {
   const todaysCompletion = completions?.find((item) => item.dayKey === todayLabel);
   const workoutPlanLink = user?.workoutPlan || (currentWorkoutPlan ? "/athlete/workout-plan" : undefined);
   const mealPlanLink = user?.mealPlan || (currentNutritionPlan ? "/athlete/meal-plan" : undefined);
-  const hasWorkoutLink = workoutPlanLink?.startsWith("http");
-  const hasMealLink = mealPlanLink?.startsWith("http");
+
+  // Logic for "Start Here" Banner
+  const hasEverCheckedIn = checkins && checkins.length > 0;
 
   return (
     <LayoutAthlete>
       <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+
+        {/* "Start Here" Banner - Show only if no check-ins yet */}
+        {!isLoading && !hasEverCheckedIn && (
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(var(--primary),0.1)]">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-lg">1</div>
+              <div>
+                <h3 className="text-lg font-bold text-primary">Let's set your baseline.</h3>
+                <p className="text-sm text-muted-foreground">Complete your first check-in to give your coach the data they need.</p>
+              </div>
+            </div>
+            <Link href="/athlete/check-in">
+              <Button className="w-full md:w-auto font-bold uppercase tracking-widest shadow-lg shadow-primary/20 animate-pulse">
+                Start Check-In <ChevronRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        )}
+
         {/* Hero Section */}
         <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-sm">
           <div className="relative z-10 flex flex-col md:items-center md:flex-row justify-between gap-6">
             <div className="space-y-2">
               <div className="flex items-center gap-2">
                 <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20">
-                  {user?.currentPhase || "Off-season"}
+                  {user?.currentPhase || "Pre-Season"}
                 </span>
                 <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Training Phase</span>
               </div>
@@ -51,12 +74,14 @@ export default function AthleteDashboard() {
             </div>
 
             <div className="flex flex-col sm:flex-row gap-3">
-              <Link href="/athlete/check-in">
-                <Button className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest shadow-lg shadow-primary/20 group">
-                  Submit Check-In
-                  <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
+              <TooltipHelper preferenceKey={PREFERENCES_KEYS.HAS_SEEN_DASHBOARD_TOOLTIP} content="Tap here weekly to update your weight, photos, and biofeedback for your coach." side="bottom">
+                <Link href="/athlete/check-in">
+                  <Button className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest shadow-lg shadow-primary/20 group">
+                    Submit Check-In
+                    <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  </Button>
+                </Link>
+              </TooltipHelper>
               <Link href="/athlete/messages">
                 <Button variant="outline" className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest backdrop-blur-sm">
                   <MessageSquare className="w-4 h-4 mr-2" />
@@ -115,16 +140,22 @@ export default function AthleteDashboard() {
                   </div>
                 </div>
               ) : (
-                <p className="text-sm text-muted-foreground py-8 text-center italic">No meal plan currently assigned.</p>
+                <EmptyState
+                  icon={Utensils}
+                  title="No Plan Assigned"
+                  description="Your coach hasn't assigned a meal plan yet."
+                />
               )}
             </div>
-            <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
-              <Link href="/athlete/meal-plan">
-                <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
-                  View Full Protocol
-                </Button>
-              </Link>
-            </div>
+            {currentNutritionPlan && (
+              <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+                <Link href="/athlete/meal-plan">
+                  <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
+                    View Full Protocol
+                  </Button>
+                </Link>
+              </div>
+            )}
           </Card>
 
           {/* Training Card */}
@@ -216,10 +247,11 @@ export default function AthleteDashboard() {
                   </div>
                 </div>
               ) : (
-                <div className="text-center py-8">
-                  <MessageSquare className="w-12 h-12 text-muted-foreground opacity-20 mx-auto mb-2" />
-                  <p className="text-sm text-muted-foreground italic">No metrics logged this week.</p>
-                </div>
+                <EmptyState
+                  icon={Activity}
+                  title="No Data Yet"
+                  description="Submit your first check-in to start tracking progress."
+                />
               )}
             </div>
             <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
@@ -236,4 +268,3 @@ export default function AthleteDashboard() {
   );
 }
 
-import { ChevronRight } from "lucide-react";

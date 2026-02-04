@@ -14,6 +14,10 @@ import { useQuery } from "@tanstack/react-query";
 import { api, type TrainingCompletion } from "@shared/routes";
 import LayoutCoach from "@/components/LayoutCoach";
 import { apiFetch } from "@/lib/apiFetch";
+import { EmptyState } from "@/components/ui/EmptyState";
+
+import { TooltipHelper } from "@/components/ui/TooltipHelper";
+import { PREFERENCES_KEYS } from "@/lib/preferences";
 
 export default function CoachDashboard() {
   const { user, logout } = useAuth();
@@ -81,6 +85,22 @@ export default function CoachDashboard() {
   return (
     <LayoutCoach>
       <div className="space-y-8">
+
+        {!athletes || athletes.length === 0 ? (
+          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(var(--primary),0.1)] mb-8">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-lg">1</div>
+              <div>
+                <h3 className="text-lg font-bold text-primary">Build your roster.</h3>
+                <p className="text-sm text-muted-foreground">Add your first athlete to start tracking their progress.</p>
+              </div>
+            </div>
+            <Button onClick={() => setIsDialogOpen(true)} className="w-full md:w-auto font-bold uppercase tracking-widest shadow-lg shadow-primary/20 animate-pulse">
+              Add Athlete <Plus className="w-4 h-4 ml-2" />
+            </Button>
+          </div>
+        ) : null}
+
         <div className="hidden md:flex items-center justify-between">
           <h1 className="text-3xl font-bold tracking-tight">Coach Dashboard</h1>
         </div>
@@ -97,7 +117,12 @@ export default function CoachDashboard() {
           </Card>
           <Card className="bg-orange-500/5 border-orange-500/20 backdrop-blur-sm">
             <CardContent className="p-6">
-              <p className="text-xs font-medium text-muted-foreground tracking-wider">Attention Required</p>
+              <div className="flex items-center gap-2">
+                <p className="text-xs font-medium text-muted-foreground tracking-wider">Attention Required</p>
+                <TooltipHelper preferenceKey={PREFERENCES_KEYS.HAS_SEEN_COACH_DASHBOARD_TOOLTIP} content="This number shows how many athletes on your roster have NOT submitted their check-in for the current week." side="top">
+                  <AlertCircle className="w-3 h-3 text-orange-500/50 cursor-help" />
+                </TooltipHelper>
+              </div>
               <div className="flex items-end gap-2 mt-2">
                 <p className="text-4xl font-display font-bold leading-none text-orange-500">{pendingCheckins}</p>
                 <p className="text-xs text-orange-500/60 mb-1">Pending Check-ins</p>
@@ -118,7 +143,7 @@ export default function CoachDashboard() {
         </div>
 
         {/* Roster Section */}
-        <div className="space-y-6">
+        < div className="space-y-6" >
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
               <Users className="w-6 h-6 text-primary" />
@@ -195,16 +220,20 @@ export default function CoachDashboard() {
               />
             ))}
             {filteredAthletes?.length === 0 && (
-              <div className="col-span-full text-center py-32 text-muted-foreground bg-secondary/5 rounded-2xl border border-dashed border-border/50">
-                <Users className="w-16 h-16 mx-auto mb-4 opacity-10" />
-                <p className="text-lg font-medium">No athletes found matching your search.</p>
-                <Button variant="ghost" onClick={() => { setSearchQuery(""); setFilter("all"); }} className="mt-2 text-primary font-bold">Clear filters</Button>
+              <div className="col-span-full">
+                <EmptyState
+                  icon={Users}
+                  title="No Athletes Found"
+                  description={searchQuery ? "Try adjusting your search filters." : "You haven't added any athletes yet."}
+                  actionLabel={!searchQuery ? "Add Your First Athlete" : undefined}
+                  onAction={!searchQuery ? () => setIsDialogOpen(true) : undefined}
+                />
               </div>
             )}
           </div>
-        </div>
-      </div>
-    </LayoutCoach>
+        </div >
+      </div >
+    </LayoutCoach >
   );
 }
 

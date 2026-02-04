@@ -62,7 +62,7 @@
 
   --accent: var(--ml-color-secondary);
   --accent-foreground: 210 20% 98%;
-  --accent-border: var(--ml-color-secondary);
+  --accent-border: var(--ml-color-border);
 
   --destructive: var(--ml-color-error);
   --destructive-foreground: 210 20% 98%;
@@ -138,4 +138,78 @@ input,
 textarea,
 select {
   @apply rounded-[var(--ml-radius-md)] bg-input border border-border text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary transition-all duration-200 outline-none;
+}
+
+@layer utilities {
+  .safe-area {
+    padding-top: var(--sat);
+    padding-bottom: var(--sab);
+    padding-left: var(--sal);
+    padding-right: var(--sar);
+  }
+
+  .safe-area-top {
+    padding-top: var(--sat);
+  }
+
+  .safe-area-bottom {
+    padding-bottom: var(--sab);
+  }
+
+  .pt-safe {
+    padding-top: var(--sat);
+  }
+
+  .pb-safe {
+    padding-bottom: var(--sab);
+  }
+
+  .pl-safe {
+    padding-left: var(--sal);
+  }
+
+  .pr-safe {
+    padding-right: var(--sar);
+  }
+
+  .top-safe {
+    top: var(--sat);
+  }
+
+  .bottom-safe {
+    bottom: var(--sab);
+  }
+
+  .min-h-dvh {
+    min-height: 100dvh;
+  }
+
+  .h-dvh {
+    height: 100dvh;
+  }
+}
+
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+}
+
+/* Base resets */
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  /* Prevent body scroll, handle in app shell */
+  overscroll-behavior-y: none;
+}
+
+@layer utilities {
+  .scroll-y {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
 }
