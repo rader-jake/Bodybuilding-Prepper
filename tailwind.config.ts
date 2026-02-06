@@ -9,6 +9,11 @@ export default {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+
+        // ✅ add these
+        "ml-radius-lg": "var(--radius)",
+        "ml-radius-md": "calc(var(--radius) - 2px)",
+        "ml-radius-sm": "calc(var(--radius) - 4px)",
       },
       colors: {
         // Flat / base colors (regular buttons)
@@ -81,6 +86,19 @@ export default {
           busy: "rgb(239 68 68)",
           offline: "rgb(156 163 175)",
         },
+        // MetaLifts Premium design tokens
+        "ml-bg": "hsl(var(--ml-bg) / <alpha-value>)",
+        "ml-surface": "hsl(var(--ml-surface) / <alpha-value>)",
+        "ml-elevated": "hsl(var(--ml-elevated) / <alpha-value>)",
+        "ml-elevated-alt": "hsl(var(--ml-elevated-alt) / <alpha-value>)",
+        "ml-primary": "hsl(var(--ml-primary) / <alpha-value>)",
+        "ml-primary-alt": "hsl(var(--ml-primary-alt) / <alpha-value>)",
+        "ml-secondary": "hsl(var(--ml-secondary) / <alpha-value>)",
+        "ml-text": "hsl(var(--ml-text) / <alpha-value>)",
+        "ml-text-muted": "hsl(var(--ml-text-muted) / <alpha-value>)",
+        "ml-text-dimmed": "hsl(var(--ml-text-dimmed) / <alpha-value>)",
+        "ml-border": "hsl(var(--ml-border) / <alpha-value>)",
+        "ml-ring": "hsl(var(--ml-ring) / <alpha-value>)",
       },
       fontFamily: {
         sans: ["var(--font-sans)"],

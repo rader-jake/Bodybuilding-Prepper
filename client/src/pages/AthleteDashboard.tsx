@@ -39,52 +39,53 @@ export default function AthleteDashboard() {
 
         {/* "Start Here" Banner - Show only if no check-ins yet */}
         {!isLoading && !hasEverCheckedIn && (
-          <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 flex flex-col md:flex-row items-center justify-between gap-4 shadow-[0_0_30px_rgba(var(--primary),0.1)]">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-xl shadow-lg">1</div>
+          <div className="glass-panel rounded-3xl p-8 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl mb-12 animate-in fade-in slide-in-from-top-4 duration-1000">
+            <div className="flex items-center gap-6">
+              <div className="w-16 h-16 rounded-2xl bg-primary text-primary-foreground flex items-center justify-center font-bold text-2xl shadow-xl rotate-3">1</div>
               <div>
-                <h3 className="text-lg font-bold text-primary">Let's set your baseline.</h3>
-                <p className="text-sm text-muted-foreground">Complete your first check-in to give your coach the data they need.</p>
+                <h3 className="text-xl font-display font-bold text-primary">Let's set your baseline</h3>
+                <p className="text-muted-foreground max-w-sm">Complete your first check-in to give your coach the initial data they need to adjust your plan.</p>
               </div>
             </div>
             <Link href="/athlete/check-in">
-              <Button className="w-full md:w-auto font-bold uppercase tracking-widest shadow-lg shadow-primary/20 animate-pulse">
-                Start Check-In <ChevronRight className="w-4 h-4 ml-2" />
+              <Button className="btn-primary w-full md:w-auto h-14 px-8 group">
+                Start Check-In <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
               </Button>
             </Link>
           </div>
         )}
 
-        {/* Hero Section */}
-        <div className="relative overflow-hidden rounded-2xl bg-card border border-border p-6 sm:p-8 shadow-sm">
-          <div className="relative z-10 flex flex-col md:items-center md:flex-row justify-between gap-6">
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="px-2 py-0.5 rounded bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-widest border border-primary/20">
+        <div className="card-premium relative overflow-hidden p-8 sm:p-10">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+
+          <div className="relative z-10 flex flex-col md:items-center md:flex-row justify-between gap-8">
+            <div className="space-y-4">
+              <div className="flex items-center gap-3">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-[0.2em] border border-primary/20">
                   {user?.currentPhase || "Pre-Season"}
                 </span>
-                <span className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Current Training Phase</span>
+                <span className="label-caps opacity-60">Phase</span>
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
-                Welcome, {user?.displayName || user?.username}
+              <h2 className="text-4xl sm:text-5xl font-display font-bold tracking-tight leading-none">
+                Welcome, <span className="text-primary">{user?.displayName || user?.username}</span>
               </h2>
-              <p className="text-muted-foreground text-sm sm:text-base max-w-lg">
-                Stay consistent. Your transformation is the result of what you do every day.
+              <p className="text-ml-text-muted text-lg max-w-lg leading-relaxed">
+                Stay consistent. Your transformation is the result of what you do every single day.
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex flex-col sm:flex-row gap-4">
               <TooltipHelper preferenceKey={PREFERENCES_KEYS.HAS_SEEN_DASHBOARD_TOOLTIP} content="Tap here weekly to update your weight, photos, and biofeedback for your coach." side="bottom">
                 <Link href="/athlete/check-in">
-                  <Button className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest shadow-lg shadow-primary/20 group">
-                    Submit Check-In
-                    <ChevronRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                  <Button className="btn-primary w-full sm:w-auto h-14 px-10 group">
+                    Weekly Check-In
+                    <ChevronRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               </TooltipHelper>
               <Link href="/athlete/messages">
-                <Button variant="outline" className="w-full sm:w-auto h-12 px-8 font-bold uppercase tracking-widest backdrop-blur-sm">
-                  <MessageSquare className="w-4 h-4 mr-2" />
+                <Button variant="outline" className="w-full sm:w-auto h-14 px-8 font-bold uppercase tracking-widest backdrop-blur-sm border-white/10 hover:bg-white/5 rounded-full">
+                  <MessageSquare className="w-5 h-5 mr-3" />
                   Coach Messenger
                 </Button>
               </Link>
@@ -106,81 +107,85 @@ export default function AthleteDashboard() {
           )}
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Nutrition Card */}
-          <Card className="border-border/50 bg-card hover:border-primary/30 transition-colors shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 space-y-4 flex-1">
+          <div className="card-premium flex flex-col h-full group">
+            <div className="space-y-6 flex-1">
               <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold text-xl flex items-center gap-2">
-                  <Utensils className="w-5 h-5 text-primary" />
-                  Daily Nutrition
+                <h3 className="font-display font-bold text-2xl flex items-center gap-3">
+                  <Utensils className="w-6 h-6 text-primary" />
+                  Nutrition
                 </h3>
                 {currentNutritionPlan && (
-                  <span className="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 px-2 py-0.5 rounded-full uppercase">Target Set</span>
+                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest border border-primary/20">Target Set</span>
                 )}
               </div>
 
               {currentNutritionPlan ? (
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <div className="bg-secondary/20 p-3 rounded-lg border border-border/30">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Protein</p>
-                    <p className="text-lg font-bold font-display">{currentNutritionPlan.proteinG}g</p>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+                    <p className="label-caps mb-2">Protein</p>
+                    <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.proteinG}g</p>
                   </div>
-                  <div className="bg-secondary/20 p-3 rounded-lg border border-border/30">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Carbs</p>
-                    <p className="text-lg font-bold font-display">{currentNutritionPlan.carbsG}g</p>
+                  <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+                    <p className="label-caps mb-2">Carbs</p>
+                    <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.carbsG}g</p>
                   </div>
-                  <div className="bg-secondary/20 p-3 rounded-lg border border-border/30">
-                    <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider">Fats</p>
-                    <p className="text-lg font-bold font-display">{currentNutritionPlan.fatsG}g</p>
+                  <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+                    <p className="label-caps mb-2">Fats</p>
+                    <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.fatsG}g</p>
                   </div>
-                  <div className="bg-primary/5 p-3 rounded-lg border border-primary/20">
-                    <p className="text-[10px] text-primary/80 uppercase font-bold tracking-wider">Calories</p>
-                    <p className="text-lg font-bold font-display text-primary">{currentNutritionPlan.calories || (currentNutritionPlan.proteinG! * 4 + currentNutritionPlan.carbsG! * 4 + currentNutritionPlan.fatsG! * 9)}</p>
+                  <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+                    <p className="label-caps mb-2 text-primary">Calories</p>
+                    <p className="text-2xl font-display font-bold text-primary leading-none">
+                      {currentNutritionPlan.calories || (currentNutritionPlan.proteinG! * 4 + currentNutritionPlan.carbsG! * 4 + currentNutritionPlan.fatsG! * 9)}
+                    </p>
                   </div>
                 </div>
               ) : (
-                <EmptyState
-                  icon={Utensils}
-                  title="No Plan Assigned"
-                  description="Your coach hasn't assigned a meal plan yet."
-                />
+                <div className="py-8 bg-white/[0.02] rounded-2xl border border-white/[0.03] flex flex-col items-center justify-center text-center px-4">
+                  <Utensils className="w-10 h-10 text-white/10 mb-4" />
+                  <p className="text-sm font-bold text-white/40 uppercase tracking-widest">No Plan Assigned</p>
+                </div>
               )}
             </div>
             {currentNutritionPlan && (
-              <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+              <div className="mt-8 pt-6 border-t border-white/[0.05]">
                 <Link href="/athlete/meal-plan">
-                  <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
-                    View Full Protocol
+                  <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
+                    Full Protocol
+                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </Button>
                 </Link>
               </div>
             )}
-          </Card>
+          </div>
 
           {/* Training Card */}
-          <Card className="border-border/50 bg-card hover:border-primary/30 transition-colors shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 space-y-4 flex-1">
-              <h3 className="font-display font-bold text-xl flex items-center gap-2">
-                <Activity className="w-5 h-5 text-primary" />
-                Today's Training
+          <div className="card-premium flex flex-col h-full group">
+            <div className="space-y-6 flex-1">
+              <h3 className="font-display font-bold text-2xl flex items-center gap-3">
+                <Activity className="w-6 h-6 text-primary" />
+                Training
               </h3>
 
-              <div className="bg-secondary/20 rounded-xl p-4 border border-border/30 mt-4">
-                <p className="text-[10px] text-muted-foreground uppercase font-bold tracking-widest mb-1">Workout Focus</p>
-                <p className="text-lg font-bold font-display uppercase tracking-tight">
-                  {todaysPlan ? todaysPlan.focus || "Weights Session" : "Active Recovery / Rest"}
-                </p>
-                {todaysPlan && (
-                  <p className="text-xs text-muted-foreground mt-1">Day {format(new Date(), 'EEEE')}</p>
-                )}
+              <div className="bg-white/[0.02] rounded-2xl p-6 border border-white/[0.03] space-y-4">
+                <div className="flex justify-between items-start">
+                  <div>
+                    <p className="label-caps mb-2 opacity-60">Today's Focus</p>
+                    <p className="text-2xl font-display font-bold uppercase tracking-tight leading-none">
+                      {todaysPlan ? todaysPlan.focus || "Weights Session" : "Active Recovery"}
+                    </p>
+                  </div>
+                  {todaysPlan && <span className="label-caps opacity-40">{format(new Date(), 'EEE')}</span>}
+                </div>
               </div>
 
               {todaysPlan && (
                 <div className="mt-6">
-                  <label className={`flex items-center gap-3 rounded-xl border p-4 transition-all cursor-pointer group ${todaysCompletion?.completed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-secondary/40 border-border/50 hover:border-primary/50'}`}>
-                    <div className={`w-6 h-6 rounded-md border-2 flex items-center justify-center transition-all ${todaysCompletion?.completed ? 'bg-emerald-500 border-emerald-500' : 'border-muted-foreground group-hover:border-primary'}`}>
-                      {todaysCompletion?.completed && <ClipboardCheck className="w-4 h-4 text-white" />}
+                  <label className={`flex items-center gap-4 rounded-2xl border p-5 transition-all cursor-pointer group/item ${todaysCompletion?.completed ? 'bg-primary/10 border-primary/30' : 'bg-white/[0.02] border-white/[0.05] hover:border-primary/50'}`}>
+                    <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${todaysCompletion?.completed ? 'bg-primary border-primary' : 'border-white/20 group-hover/item:border-primary'}`}>
+                      {todaysCompletion?.completed && <ClipboardCheck className="w-5 h-5 text-ml-bg" />}
                     </div>
                     <input
                       type="checkbox"
@@ -203,68 +208,64 @@ export default function AthleteDashboard() {
                         });
                       }}
                     />
-                    <span className="text-sm font-bold uppercase tracking-wide">
-                      {todaysCompletion?.completed ? 'Workout Completed' : 'Mark as Complete'}
+                    <span className="text-sm font-bold uppercase tracking-widest">
+                      {todaysCompletion?.completed ? 'Completed' : 'Submit Done'}
                     </span>
                   </label>
                 </div>
               )}
             </div>
-            <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+            <div className="mt-8 pt-6 border-t border-white/[0.05]">
               <Link href="/athlete/workout-plan">
-                <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
-                  Full Workout Library
+                <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
+                  Full Library
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
             </div>
-          </Card>
+          </div>
 
           {/* Progress Card */}
-          <Card className="border-border/50 bg-card hover:border-primary/30 transition-colors shadow-sm overflow-hidden flex flex-col">
-            <div className="p-6 space-y-4 flex-1">
-              <h3 className="font-display font-bold text-xl flex items-center gap-2">
-                <BarChart3 className="w-5 h-5 text-primary" />
-                Latest Metrics
+          <div className="card-premium flex flex-col h-full group">
+            <div className="space-y-6 flex-1">
+              <h3 className="font-display font-bold text-2xl flex items-center gap-3">
+                <BarChart3 className="w-6 h-6 text-primary" />
+                Progress
               </h3>
 
               {last ? (
-                <div className="space-y-4 mt-4">
-                  <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border/30">
-                    <span className="text-xs text-muted-foreground font-bold uppercase">Morning Weight</span>
-                    <span className="text-lg font-bold font-display text-primary">{last.weight}</span>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
+                    <span className="label-caps opacity-60">Morning Weight</span>
+                    <span className="text-2xl font-display font-bold text-primary">{last.weight}<span className="text-xs ml-1 opacity-40 font-sans">LBS</span></span>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border/30">
-                    <span className="text-xs text-muted-foreground font-bold uppercase">Sleep Quality</span>
-                    <div className="flex gap-1">
+                  <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
+                    <span className="label-caps opacity-60">Feeling</span>
+                    <div className="flex gap-1.5">
                       {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className={`w-3 h-1.5 rounded-full ${i <= (last.sleep || 0) / 2 ? 'bg-primary' : 'bg-muted'}`} />
+                        <div key={i} className={`w-4 h-2 rounded-full ${i <= (last.energy || 5) ? 'bg-primary' : 'bg-white/5'}`} />
                       ))}
                     </div>
                   </div>
-                  <div className="flex items-center justify-between p-3 bg-secondary/20 rounded-lg border border-border/30">
-                    <span className="text-xs text-muted-foreground font-bold uppercase">Stress Level</span>
-                    <span className="text-xs font-bold uppercase">{last.stress}/10</span>
-                  </div>
                 </div>
               ) : (
-                <EmptyState
-                  icon={Activity}
-                  title="No Data Yet"
-                  description="Submit your first check-in to start tracking progress."
-                />
+                <div className="py-8 bg-white/[0.02] rounded-2xl border border-white/[0.03] flex flex-col items-center justify-center text-center px-4">
+                  <Activity className="w-10 h-10 text-white/10 mb-4" />
+                  <p className="text-sm font-bold text-white/40 uppercase tracking-widest">No Baseline Set</p>
+                </div>
               )}
             </div>
-            <div className="px-6 py-4 bg-secondary/10 border-t border-border/50">
+            <div className="mt-8 pt-6 border-t border-white/[0.05]">
               <Link href="/athlete/history">
-                <Button variant="ghost" size="sm" className="w-full font-bold uppercase tracking-widest text-primary hover:text-primary hover:bg-primary/5">
-                  View Full History
+                <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
+                  Full History
+                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
             </div>
-          </Card>
+          </div>
         </div>
       </div>
     </LayoutAthlete>
   );
 }
-

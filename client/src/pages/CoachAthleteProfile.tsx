@@ -12,6 +12,7 @@ import { useEffect, useState } from "react";
 import { format, differenceInDays } from "date-fns";
 import { Redirect, useLocation, useRoute } from "wouter";
 import { POSE_KEYS } from "@/lib/poses";
+import { getTemplateForUser } from "@/lib/templates";
 
 export default function CoachAthleteProfile() {
   const { user } = useAuth();
@@ -19,11 +20,11 @@ export default function CoachAthleteProfile() {
   const [, params] = useRoute("/dashboard/athletes/:id");
   const [, setLocation] = useLocation();
 
-  if (!user || user.role !== "coach") return <Redirect to="/" />;
-  if (!params?.id) return <Redirect to="/dashboard" />;
-
-  const athleteId = Number(params.id);
+  const athleteId = Number(params?.id);
   const athlete = athletes?.find((item) => item.id === athleteId);
+
+  // Determine template based on athlete's sport (defaults to bodybuilding)
+  const template = getTemplateForUser(athlete || null);
   const { checkins } = useCheckins(athleteId);
   const { trainingBlocks, createTrainingBlock } = useTrainingBlocks(athleteId);
   const { weeklyPlans, createWeeklyPlan } = useWeeklyTrainingPlans(athleteId);
@@ -190,13 +191,24 @@ export default function CoachAthleteProfile() {
   const weightChangePct = latestWeight && previousWeight ? ((latestWeight - previousWeight) / previousWeight) * 100 : null;
   const flags: string[] = [];
   const ratingPoses = ["front_relaxed", "back_double_biceps"];
-  const poseTrends = ratingPoses.map((poseKey) => {
+
+  // Calculate specific trends based on sport
+  const poseTrends = template.sportType === 'bodybuilding' ? ratingPoses.map((poseKey) => {
     const ratings = (checkins || [])
       .map((checkin) => checkin.poseRatings?.[poseKey])
       .filter((rating) => typeof rating === "number") as number[];
     if (ratings.length < 2) return null;
     return { poseKey, start: ratings[ratings.length - 1], end: ratings[0] };
-  }).filter(Boolean) as Array<{ poseKey: string; start: number; end: number }>;
+  }).filter(Boolean) as Array<{ poseKey: string; start: number; end: number }> : [];
+
+  // For powerlifting/other, we could calculate Max trends here
+  const metricTrends = template.sportType !== 'bodybuilding' && checkins?.length && checkins.length > 1 ?
+    template.fields.filter(f => f.type === 'number').slice(0, 3).map(field => {
+      const latestInfo = checkins[0].data?.[field.id] || checkins[0].weight; // fallback for core fields
+      const prevInfo = checkins[checkins.length - 1].data?.[field.id] || checkins[checkins.length - 1].weight;
+      if (!latestInfo || !prevInfo) return null;
+      return { label: field.label, start: prevInfo, end: latestInfo };
+    }).filter(Boolean) : [];
 
   if (weightChangePct && Math.abs(weightChangePct) > 1) {
     flags.push(`Weight change ${weightChangePct.toFixed(1)}%`);
@@ -300,7 +312,7 @@ export default function CoachAthleteProfile() {
     <div className="h-full flex flex-col min-h-0 bg-background">
       <header className="z-10 bg-background/80 backdrop-blur-md border-b border-border/50 shrink-0">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between text-left">
-          <Button variant="ghost" onClick={() => setLocation("/dashboard")} className="self-start">
+          <Button variant="ghost" onClick={() => setLocation("/dashboard")}>
             <ChevronLeft className="w-4 h-4 mr-2" />
             Back
           </Button>
@@ -485,18 +497,35 @@ export default function CoachAthleteProfile() {
                   )}
                 </div>
                 <div className="pt-2">
-                  <div className="text-xs uppercase tracking-wide text-muted-foreground">Pose Ratings</div>
-                  {poseTrends.length ? (
-                    <div className="mt-2 space-y-1 text-xs text-muted-foreground">
-                      {poseTrends.map((trend) => (
-                        <div key={trend.poseKey} className="flex items-center justify-between">
-                          <span>{POSE_KEYS.find((pose) => pose.key === trend.poseKey)?.label || trend.poseKey}</span>
-                          <span>{trend.start} → {trend.end}</span>
-                        </div>
-                      ))}
-                    </div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {template.sportType === 'bodybuilding' ? 'Pose Ratings' : 'Key Metrics'}
+                  </div>
+                  {template.sportType === 'bodybuilding' ? (
+                    poseTrends.length ? (
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {poseTrends.map((trend) => (
+                          <div key={trend.poseKey} className="flex items-center justify-between">
+                            <span>{POSE_KEYS.find((pose) => pose.key === trend.poseKey)?.label || trend.poseKey}</span>
+                            <span>{trend.start} → {trend.end}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-muted-foreground">No pose ratings yet.</div>
+                    )
                   ) : (
-                    <div className="mt-2 text-xs text-muted-foreground">No pose ratings yet.</div>
+                    (metricTrends as any[])?.length ? (
+                      <div className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {(metricTrends as any[]).map((trend: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between">
+                            <span>{trend?.label}</span>
+                            <span>{trend?.start} → {trend?.end}</span>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="mt-2 text-xs text-muted-foreground">No sufficient data yet.</div>
+                    )
                   )}
                 </div>
                 <div className="rounded-lg bg-secondary/40 p-3 text-xs text-muted-foreground">
@@ -513,12 +542,12 @@ export default function CoachAthleteProfile() {
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-2">
                       <CalendarDays className="w-5 h-5 text-emerald-500" />
-                      Show Countdown
+                      {template.sportType === 'bodybuilding' ? 'Show Countdown' : 'Event Countdown'}
                     </h2>
-                    <p className="text-sm text-muted-foreground">Set the next stage date for this athlete.</p>
+                    <p className="text-sm text-muted-foreground">Set the next {template.sportType === 'bodybuilding' ? 'show' : 'event'} date for this athlete.</p>
                   </div>
                   <Button type="button" onClick={handleSaveShow}>
-                    Save show
+                    Save {template.sportType === 'bodybuilding' ? 'show' : 'event'}
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -732,7 +761,7 @@ export default function CoachAthleteProfile() {
                 {checkins?.length ? `Last check-in ${format(new Date(checkins[0].date), "MMM d, yyyy")}` : "No check-ins yet"}
               </span>
             </div>
-            {checkins && checkins.length > 0 && (
+            {checkins && checkins.length > 0 && template.sportType === 'bodybuilding' && (
               <Card className="border-border bg-card">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -779,7 +808,7 @@ export default function CoachAthleteProfile() {
             )}
             <div className="grid grid-cols-1 gap-4">
               {checkins?.map((checkin) => (
-                <CheckinReviewCard key={checkin.id} checkin={checkin} />
+                <CheckinReviewCard key={checkin.id} checkin={checkin} template={template} />
               ))}
               {!checkins?.length && (
                 <Card>
@@ -796,7 +825,7 @@ export default function CoachAthleteProfile() {
   );
 }
 
-function CheckinReviewCard({ checkin }: { checkin: any }) {
+function CheckinReviewCard({ checkin, template }: { checkin: any, template: any }) {
   const { updateCheckin } = useCheckins();
   const [feedback, setFeedback] = useState(checkin.coachFeedback || "");
   const [isEditing, setIsEditing] = useState(false);
@@ -839,7 +868,7 @@ function CheckinReviewCard({ checkin }: { checkin: any }) {
           </div>
         </div>
 
-        {checkin.posePhotos && (
+        {template.sportType === 'bodybuilding' && checkin.posePhotos && (
           <div className="space-y-2">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Pose Photos</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -852,6 +881,22 @@ function CheckinReviewCard({ checkin }: { checkin: any }) {
                       {pose.label}
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {template.sportType !== 'bodybuilding' && checkin.data && (
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground uppercase font-bold">Key Metrics</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {template.fields.filter((f: any) => !f.isCore).map((field: any) => (
+                <div key={field.id} className="rounded-md border border-border p-3 bg-secondary/10">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{field.label}</div>
+                  <div className="text-lg font-bold">
+                    {checkin.data[field.id] ? checkin.data[field.id] : '—'}
+                  </div>
                 </div>
               ))}
             </div>
@@ -897,33 +942,35 @@ function CheckinReviewCard({ checkin }: { checkin: any }) {
           )}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-xs text-muted-foreground uppercase font-bold">Pose Ratings</label>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-            {POSE_KEYS.map((pose) => (
-              <div key={pose.key} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1 text-xs">
-                <span className="text-muted-foreground">{pose.label}</span>
-                <select
-                  className="bg-background text-xs"
-                  value={poseRatings?.[pose.key] || ""}
-                  onChange={(event) => {
-                    const rating = Number(event.target.value);
-                    const next = { ...poseRatings, [pose.key]: rating };
-                    setPoseRatings(next);
-                    updateCheckin.mutate({ id: checkin.id, poseRatings: next });
-                  }}
-                >
-                  <option value="">-</option>
-                  {[1, 2, 3, 4, 5].map((value) => (
-                    <option key={value} value={value}>
-                      {value}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+        {template.sportType === 'bodybuilding' && (
+          <div className="space-y-2">
+            <label className="text-xs text-muted-foreground uppercase font-bold">Pose Ratings</label>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+              {POSE_KEYS.map((pose) => (
+                <div key={pose.key} className="flex items-center justify-between gap-2 rounded-md border border-border px-2 py-1 text-xs">
+                  <span className="text-muted-foreground">{pose.label}</span>
+                  <select
+                    className="bg-background text-xs"
+                    value={poseRatings?.[pose.key] || ""}
+                    onChange={(event) => {
+                      const rating = Number(event.target.value);
+                      const next = { ...poseRatings, [pose.key]: rating };
+                      setPoseRatings(next);
+                      updateCheckin.mutate({ id: checkin.id, poseRatings: next });
+                    }}
+                  >
+                    <option value="">-</option>
+                    {[1, 2, 3, 4, 5].map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-2">
           <label className="text-xs text-muted-foreground uppercase font-bold">Change Log</label>

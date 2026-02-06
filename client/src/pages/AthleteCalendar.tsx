@@ -4,20 +4,33 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Redirect } from "wouter";
 import { differenceInDays, eachDayOfInterval, endOfMonth, format, isSameDay, isSameMonth, startOfMonth } from "date-fns";
 import { CalendarDays } from "lucide-react";
+import { getTemplateForUser } from "@/lib/templates";
 
 export default function AthleteCalendar() {
   const { user } = useAuth();
 
   if (!user || user.role !== "athlete") return <Redirect to="/" />;
 
+  const template = getTemplateForUser(user);
+
   const showDate = user.nextShowDate ? new Date(user.nextShowDate) : null;
-  const showName = user.nextShowName || "Next show";
+  const showName = user.nextShowName || "Next event";
   const today = new Date();
   const monthStart = startOfMonth(today);
   const monthEnd = endOfMonth(today);
   const monthDays = eachDayOfInterval({ start: monthStart, end: monthEnd });
   const weekdayOffset = monthStart.getDay();
   const countdownDays = showDate ? differenceInDays(showDate, today) : null;
+
+  const eventLabel = template.sportType === 'bodybuilding' ? 'Show' :
+    template.sportType === 'powerlifting' ? 'Meet' :
+      template.sportType === 'crossfit' ? 'Comp' :
+        template.sportType === 'endurance' ? 'Race' : 'Event';
+
+  const dayLabel = template.sportType === 'bodybuilding' ? 'Stage Day' :
+    template.sportType === 'powerlifting' ? 'Meet Day' :
+      template.sportType === 'crossfit' ? 'Game Day' :
+        template.sportType === 'endurance' ? 'Race Day' : 'Event Day';
 
   return (
     <LayoutAthlete>
@@ -27,7 +40,7 @@ export default function AthleteCalendar() {
             <CalendarDays className="w-8 h-8 text-primary shadow-sm" />
             Vanguard Calendar
           </h1>
-          <p className="text-sm text-muted-foreground font-medium mt-1">Countdown to your moment on stage.</p>
+          <p className="text-sm text-muted-foreground font-medium mt-1">Countdown to your moment.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -36,7 +49,7 @@ export default function AthleteCalendar() {
             <CardContent className="p-8">
               <div className="flex flex-col gap-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Next Show Engagement</span>
+                  <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em]">Next {eventLabel} Engagement</span>
                   {showDate && (
                     <span className="text-[10px] font-bold text-primary bg-primary/10 px-2 py-0.5 rounded-full uppercase">Locked In</span>
                   )}
@@ -44,7 +57,7 @@ export default function AthleteCalendar() {
 
                 <div className="space-y-1">
                   <h2 className="text-3xl font-display font-bold uppercase tracking-tight">
-                    {showDate ? showName : "No Target Show Defined"}
+                    {showDate ? showName : `No Target ${eventLabel} Defined`}
                   </h2>
                   {showDate && (
                     <p className="text-muted-foreground font-medium">
@@ -112,18 +125,18 @@ export default function AthleteCalendar() {
                     <div
                       key={date.toISOString()}
                       className={`aspect-square rounded-xl border flex flex-col items-center justify-center relative transition-all duration-300 ${isShowDay
-                          ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30 z-10 scale-105"
-                          : isCur
-                            ? "border-primary/50 bg-primary/5 text-primary font-bold shadow-[0_0_15px_rgba(var(--primary),0.1)]"
-                            : isPast
-                              ? "border-border/20 bg-secondary/5 opacity-30"
-                              : "border-border/50 bg-background hover:border-primary/30"
+                        ? "bg-primary border-primary text-primary-foreground shadow-lg shadow-primary/30 z-10 scale-105"
+                        : isCur
+                          ? "border-primary/50 bg-primary/5 text-primary font-bold shadow-[0_0_15px_rgba(var(--primary),0.1)]"
+                          : isPast
+                            ? "border-border/20 bg-secondary/5 opacity-30"
+                            : "border-border/50 bg-background hover:border-primary/30"
                         }`}
                     >
                       <span className={`text-xs ${isShowDay ? "font-bold text-lg" : "font-medium"}`}>
                         {format(date, "d")}
                       </span>
-                      {isShowDay && <span className="text-[7px] font-bold uppercase mt-0.5">Stage Day</span>}
+                      {isShowDay && <span className="text-[7px] font-bold uppercase mt-0.5">{dayLabel}</span>}
                       {isCur && !isShowDay && <div className="absolute bottom-1 w-1 h-1 rounded-full bg-primary shadow-[0_0_5px_rgba(var(--primary),1)]" />}
                     </div>
                   );

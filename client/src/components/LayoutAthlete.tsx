@@ -18,102 +18,82 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
   return (
     <div className="h-full flex flex-col md:flex-row bg-background text-foreground overflow-hidden">
       <OnboardingModal />
-      <div className="hidden md:flex md:flex-col w-72 h-full border-r border-border bg-card">
-        <div className="px-2 mb-8">
-          <h1 className="text-2xl font-sans tracking-tight">
-            <span className="font-normal text-foreground">Meta</span>
-            <span className="font-bold text-foreground">Lifts</span>
-            <span className="text-primary ml-1">.</span>
+      <aside className="hidden md:flex md:flex-col w-72 h-full border-r border-white/[0.05] bg-ml-surface p-6">
+        <div className="mb-10 px-2">
+          <h1 className="text-3xl font-display tracking-tight leading-none">
+            <span className="font-bold text-foreground">META</span>
+            <span className="font-light text-primary">LIFTS</span>
           </h1>
         </div>
 
-        <div className="flex items-center gap-3 px-2 py-3 mb-2">
-          <Avatar>
+        <div className="flex items-center gap-4 px-3 py-4 mb-8 bg-white/[0.02] rounded-2xl border border-white/5 ring-1 ring-white/5 shadow-xl">
+          <Avatar className="h-10 w-10 border border-white/10">
             {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="Athlete avatar" /> : null}
-            <AvatarFallback>{avatarFallback}</AvatarFallback>
+            <AvatarFallback className="bg-ml-elevated text-ml-text-dimmed font-bold text-sm tracking-tight">{avatarFallback}</AvatarFallback>
           </Avatar>
-          <div>
-            <div className="text-sm font-bold">{user?.displayName || user?.username || "Athlete"}</div>
-            <div className="text-xs text-muted-foreground">View profile</div>
+          <div className="overflow-hidden">
+            <div className="text-sm font-bold truncate tracking-tight leading-none mb-1">{user?.displayName || user?.username || "Athlete"}</div>
+            <div className="text-[10px] uppercase font-bold tracking-widest text-primary opacity-60">Athlete View</div>
           </div>
         </div>
 
-        <nav className="mt-6 flex-1">
-          <ul className="space-y-1">
-            <li>
-              <Link href="/athlete/dashboard" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <Home className="w-5 h-5 text-primary" />
-                <span>Dashboard</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/check-in" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <FileText className="w-5 h-5 text-primary" />
-                <span>Check-In</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/history" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <Clock className="w-5 h-5 text-primary" />
-                <span>History</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/workout-plan" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <Activity className="w-5 h-5 text-primary" />
-                <span>Workout Plan</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/meal-plan" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <Layout className="w-5 h-5 text-primary" />
-                <span>Meal Plan</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/calendar" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <CalendarDays className="w-5 h-5 text-primary" />
-                <span>Show Calendar</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/messages" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <MessageSquare className="w-5 h-5 text-primary" />
-                <span>Messages</span>
-              </Link>
-            </li>
-            <li>
-              <Link href="/athlete/protocols-health" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                <HeartPulse className="w-5 h-5 text-primary" />
-                <span>Protocols & Health</span>
-              </Link>
-            </li>
+        <nav className="flex-1">
+          <ul className="space-y-2">
+            {[
+              { href: "/athlete/dashboard", label: "Dashboard", icon: Home },
+              { href: "/athlete/check-in", label: "Check-In", icon: FileText },
+              { href: "/athlete/history", label: "History", icon: Clock },
+              { href: "/athlete/workout-plan", label: "Workout Plan", icon: Activity },
+              { href: "/athlete/meal-plan", label: "Meal Plan", icon: Layout },
+              { href: "/athlete/calendar", label: "Show Calendar", icon: CalendarDays },
+              { href: "/athlete/messages", label: "Messages", icon: MessageSquare },
+              { href: "/athlete/protocols-health", label: "Protocols", icon: HeartPulse },
+            ].map((item) => (
+              <li key={item.label}>
+                <Link
+                  href={item.href}
+                  className="flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 group hover:bg-white/5 text-ml-text-dimmed hover:text-foreground"
+                >
+                  <item.icon className="w-5 h-5 text-primary group-hover:scale-110 transition-transform" />
+                  <span className="text-[11px] font-bold uppercase tracking-[0.15em]">{item.label}</span>
+                </Link>
+              </li>
+            ))}
           </ul>
         </nav>
 
-        <div className="mt-auto px-3 py-4">
-          <Link href="/settings/profile" className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-            <Settings className="w-5 h-5 text-muted-foreground" />
-            <span className="text-sm">Profile</span>
+        <div className="mt-auto space-y-2 pt-6 border-t border-white/5">
+          <Link href="/settings/profile" className="flex items-center gap-4 px-4 py-3 rounded-xl text-ml-text-dimmed hover:text-foreground hover:bg-white/5 transition-all">
+            <Settings className="w-5 h-5" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Profile</span>
           </Link>
+          <button
+            onClick={() => logout()}
+            className="flex w-full items-center gap-4 px-4 py-3 rounded-xl text-ml-text-dimmed hover:text-destructive hover:bg-destructive/10 transition-all text-left"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="text-[11px] font-bold uppercase tracking-[0.15em]">Log out</span>
+          </button>
         </div>
-      </div>
+      </aside>
 
       <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <header className="z-20 bg-background/80 backdrop-blur-md border-b border-border/50 shrink-0">
-          <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
-            <div className="flex items-center gap-3 min-w-0">
+        <header className="z-20 bg-ml-bg/80 backdrop-blur-xl border-b border-white/5 shrink-0 px-4">
+          <div className="max-w-6xl mx-auto py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4 min-w-0">
               <button
                 type="button"
-                className="md:hidden inline-flex items-center justify-center rounded-md border border-border/60 p-2 text-muted-foreground"
+                className="md:hidden inline-flex items-center justify-center rounded-xl bg-white/5 p-2 text-primary"
                 aria-expanded={isMobileMenuOpen}
                 aria-controls="athlete-mobile-menu"
                 aria-label="Toggle navigation menu"
                 onClick={() => setIsMobileMenuOpen((open) => !open)}
               >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {isMobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
-              <div className="text-xl sm:text-2xl font-sans font-bold tracking-tight text-primary truncate">MetaLifts</div>
+              <div className="text-2xl font-display font-bold tracking-tight text-foreground truncate">
+                <span className="text-primary">META</span>LIFTS
+              </div>
             </div>
             <div className="flex items-center gap-3">
               <button

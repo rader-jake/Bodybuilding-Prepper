@@ -18,6 +18,9 @@ export const users = pgTable("users", {
   nextShowDate: timestamp("next_show_date"),
   workoutPlan: text("workout_plan"), // Placeholder for now
   mealPlan: text("meal_plan"), // Placeholder for now
+  sport: text("sport").default("bodybuilding"), // bodybuilding, powerlifting, endurance, crossfit, etc.
+  coachIndustry: text("coach_industry", { enum: ["bodybuilding", "powerlifting", "endurance", "crossfit"] }), // Coach's selected industry - athletes inherit this
+  paymentStatus: text("payment_status", { enum: ["active", "due_soon", "overdue"] }).default("active"), // Athlete subscription status
 });
 
 export const checkins = pgTable("checkins", {
@@ -40,6 +43,7 @@ export const checkins = pgTable("checkins", {
   coachFeedback: text("coach_feedback"),
   coachChanges: jsonb("coach_changes").$type<string[]>(), // Audit log for coach edits
   status: text("status").default("new"),
+  data: jsonb("data").$type<Record<string, any>>(), // Flexible storage for sport-specific checkin fields
 });
 
 export const trainingBlocks = pgTable("training_blocks", {

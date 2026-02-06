@@ -127,6 +127,8 @@ export async function registerRoutes(
       bio: input.bio,
       timezone: input.timezone,
       avatarUrl: input.avatarUrl,
+      coachIndustry: input.coachIndustry,
+      paymentStatus: input.paymentStatus,
     };
     const sanitizedUpdates = Object.fromEntries(
       Object.entries(updates).filter(([, value]) => value !== undefined)
@@ -199,11 +201,13 @@ export async function registerRoutes(
       }
 
       const hashedPassword = await hashPassword(input.password);
+      // Athletes inherit coach's industry (in 'sport' field for backward compat)
       const athlete = await storage.createUser({
         ...input,
         password: hashedPassword,
         coachId: user.id,
-        role: 'athlete'
+        role: 'athlete',
+        sport: input.sport || user.coachIndustry, // Use provided sport or inherit from coach
       });
       res.status(201).json(athlete);
     } catch (err) {
@@ -564,13 +568,33 @@ export async function registerRoutes(
     res.json(updated);
   });
 
+  // Payment Status Management (TODO: Integrate with Stripe)
+  // Coach can set athlete payment status manually for MVP
+  app.patch("/api/athletes/:id/payment", requireAuthJWT, async (req, res) => {
+    const user = req.user as any;
+    const athleteId = Number(req.params.id);
+    
+    if (user.role !== "coach") return res.sendStatus(403);
+    
+    const athlete = await storage.getUser(athleteId);
+    if (!athlete || athlete.coachId !== user.id) return res.sendStatus(403);
+    
+    const { paymentStatus } = req.body;
+    if (!["active", "due_soon", "overdue"].includes(paymentStatus)) {
+      return res.status(400).json({ message: "Invalid payment status" });
+    }
+    
+    const updated = await storage.updateUser(athleteId, { paymentStatus });
+    res.json(updated);
+  });
+
   // Seed Data
   if ((await storage.getUserByUsername("coach")) === undefined) {
     const hp = await hashPassword("coach");
-    const coach = await storage.createUser({ username: "coach", password: hp, role: "coach" });
+    const coach = await storage.createUser({ username: "coach", password: hp, role: "coach", coachIndustry: "bodybuilding" });
 
     const hp2 = await hashPassword("athlete");
-    const athlete = await storage.createUser({ username: "athlete", password: hp2, role: "athlete", coachId: coach.id });
+    const athlete = await storage.createUser({ username: "athlete", password: hp2, role: "athlete", coachId: coach.id, sport: "bodybuilding", paymentStatus: "active" });
 
     await storage.createCheckin({
       athleteId: athlete.id,

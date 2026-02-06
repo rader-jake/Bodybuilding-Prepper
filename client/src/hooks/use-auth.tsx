@@ -38,8 +38,15 @@ export function useAuth() {
       setToken(token);
       queryClient.setQueryData([api.auth.me.path], user);
       toast({ title: "Welcome back", description: "Successfully logged in", duration: 2000 });
-      if (user.role === "coach") setLocation("/dashboard");
-      else setLocation("/athlete/dashboard");
+      if (user.role === "coach") {
+        if (!user.coachIndustry) {
+          setLocation("/onboarding/coach-industry");
+        } else {
+          setLocation("/dashboard");
+        }
+      } else {
+        setLocation("/athlete/dashboard");
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -62,8 +69,15 @@ export function useAuth() {
       setToken(token);
       queryClient.setQueryData([api.auth.me.path], user);
       toast({ title: "Account created", description: "Welcome to MetaLifts" });
-      if (user.role === "coach") setLocation("/dashboard");
-      else setLocation("/athlete/dashboard");
+      if (user.role === "coach") {
+        if (!user.coachIndustry) {
+          setLocation("/onboarding/coach-industry");
+        } else {
+          setLocation("/dashboard");
+        }
+      } else {
+        setLocation("/athlete/dashboard");
+      }
     },
     onError: (error: Error) => {
       toast({
@@ -85,6 +99,7 @@ export function useAuth() {
     },
     onSuccess: () => {
       clearToken();
+      queryClient.clear(); // Clear all cached data (athletes, checkins, etc)
       queryClient.setQueryData([api.auth.me.path], null);
       setLocation("/");
     },

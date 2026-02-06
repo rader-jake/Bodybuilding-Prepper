@@ -31,35 +31,33 @@ export default function LayoutCoach({ children, title = "Coach Dashboard" }: { c
         <div className="h-full bg-background text-foreground">
             <OnboardingModal />
             <div className="h-full flex flex-col md:flex-row bg-background text-foreground overflow-hidden">
-                {/* Desktop Sidebar */}
-                <aside className="hidden md:flex md:flex-col w-72 h-full border-r border-border bg-card">
-                    <div className="px-2 mb-8">
-                        <h1 className="text-2xl font-sans tracking-tight">
-                            <span className="font-normal text-foreground">Meta</span>
-                            <span className="font-bold text-foreground">Lifts</span>
-                            <span className="text-primary ml-1">.</span>
+                <aside className="hidden md:flex md:flex-col w-72 h-full border-r border-white/[0.05] bg-ml-surface p-6">
+                    <div className="mb-10 px-2">
+                        <h1 className="text-3xl font-display tracking-tight leading-none">
+                            <span className="font-bold text-foreground">META</span>
+                            <span className="font-light text-primary">LIFTS</span>
                         </h1>
                     </div>
 
-                    <div className="flex items-center gap-3 px-2 py-3 mb-2">
-                        <Avatar>
+                    <div className="flex items-center gap-4 px-3 py-4 mb-8 bg-white/[0.02] rounded-2xl border border-white/5 ring-1 ring-white/5 shadow-xl">
+                        <Avatar className="h-10 w-10 border border-white/10">
                             {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="Coach avatar" /> : null}
-                            <AvatarFallback>{avatarFallback}</AvatarFallback>
+                            <AvatarFallback className="bg-ml-elevated text-ml-text-dimmed font-bold">{avatarFallback}</AvatarFallback>
                         </Avatar>
-                        <div>
-                            <div className="text-sm font-bold">{user?.displayName || user?.username || "Coach"}</div>
-                            <div className="text-xs text-muted-foreground">View profile</div>
+                        <div className="overflow-hidden">
+                            <div className="text-sm font-bold truncate tracking-tight">{user?.displayName || user?.username || "Coach"}</div>
+                            <div className="text-[10px] uppercase font-bold tracking-widest text-primary opacity-60">Coach Access</div>
                         </div>
                     </div>
 
-                    <nav className="mt-6 flex-1">
-                        <ul className="space-y-1">
+                    <nav className="flex-1">
+                        <ul className="space-y-2">
                             {navItems.map((item) => (
                                 <li key={item.label}>
                                     <Link href={item.href}>
-                                        <a className={`flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5 ${item.match(location) ? 'bg-primary/10 text-primary font-bold' : ''}`}>
-                                            <item.icon className="w-5 h-5" />
-                                            <span>{item.label}</span>
+                                        <a className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-all duration-300 group ${item.match(location) ? 'bg-primary/10 text-primary border border-primary/20 shadow-lg shadow-primary/5' : 'text-ml-text-dimmed hover:text-foreground hover:bg-white/5'}`}>
+                                            <item.icon className={`w-5 h-5 transition-transform group-hover:scale-110 ${item.match(location) ? 'text-primary' : 'text-ml-text-dimmed group-hover:text-foreground'}`} />
+                                            <span className="text-sm font-bold uppercase tracking-widest">{item.label}</span>
                                         </a>
                                     </Link>
                                 </li>
@@ -67,19 +65,19 @@ export default function LayoutCoach({ children, title = "Coach Dashboard" }: { c
                         </ul>
                     </nav>
 
-                    <div className="mt-auto px-3 py-4 space-y-2">
+                    <div className="mt-auto space-y-2 pt-6 border-t border-white/5">
                         <Link href="/settings/profile">
-                            <a className="flex items-center gap-3 px-3 py-2 rounded hover:bg-primary/5">
-                                <Settings className="w-5 h-5 text-muted-foreground" />
-                                <span className="text-sm">Profile</span>
+                            <a className="flex items-center gap-4 px-4 py-3 rounded-xl text-ml-text-dimmed hover:text-foreground hover:bg-white/5 transition-all">
+                                <Settings className="w-5 h-5" />
+                                <span className="text-sm font-bold uppercase tracking-widest">Profile</span>
                             </a>
                         </Link>
                         <button
                             onClick={() => logout()}
-                            className="flex w-full items-center gap-3 px-3 py-2 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors text-left"
+                            className="flex w-full items-center gap-4 px-4 py-3 rounded-xl text-ml-text-dimmed hover:text-destructive hover:bg-destructive/10 transition-all text-left"
                         >
                             <LogOut className="w-5 h-5" />
-                            <span className="text-sm">Log out</span>
+                            <span className="text-sm font-bold uppercase tracking-widest">Log out</span>
                         </button>
                     </div>
                 </aside>
