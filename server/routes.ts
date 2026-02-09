@@ -357,8 +357,8 @@ export async function registerRoutes(
         athleteId: String(user.id),
         coachId: String(profile.coachId),
       },
-      success_url: `${APP_BASE_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${APP_BASE_URL}/billing/cancel`,
+      success_url: `${APP_BASE_URL}billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${APP_BASE_URL}billing/cancel`,
     });
 
     res.json({ url: session.url });
@@ -372,7 +372,7 @@ export async function registerRoutes(
 
     const portalSession = await stripe.billingPortal.sessions.create({
       customer: profile.stripeCustomerId,
-      return_url: `${APP_BASE_URL}/athlete/dashboard`,
+      return_url: `${APP_BASE_URL}athlete/dashboard`,
     });
     res.json({ url: portalSession.url });
   });
