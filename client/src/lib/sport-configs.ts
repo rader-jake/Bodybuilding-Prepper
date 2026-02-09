@@ -87,28 +87,28 @@ export const SPORT_CHECKIN_CONFIGS: Record<SportType, SportCheckinConfig> = {
   bodybuilding: {
     metrics: [
       { key: "weight", label: "Bodyweight", type: "number", required: true },
-      { key: "feel_score", label: "Condition This Week (1–5)", type: "rating", required: true, min: 1, max: 5 },
+      { key: "condition_score", label: "Condition This Week (1–5)", type: "rating", required: true, min: 1, max: 5 },
     ],
     requiresPhotos: true,
-    summaryMetrics: ["weight", "feel_score"],
+    summaryMetrics: ["weight", "condition_score"],
   },
   powerlifting: {
     metrics: [
       { key: "weight", label: "Bodyweight", type: "number", required: true },
-      { key: "squat_top_set", label: "Squat Top Set (kg x reps)", type: "text", required: true, placeholder: "e.g. 200 x 5" },
-      { key: "bench_top_set", label: "Bench Top Set (kg x reps)", type: "text", required: true, placeholder: "e.g. 140 x 5" },
-      { key: "deadlift_top_set", label: "Deadlift Top Set (kg x reps)", type: "text", required: true, placeholder: "e.g. 230 x 3" },
+      { key: "squat_top_set", label: "Squat Top Set (weight x reps)", type: "text", required: true, placeholder: "e.g. 405 x 5" },
+      { key: "bench_top_set", label: "Bench Top Set (weight x reps)", type: "text", required: true, placeholder: "e.g. 315 x 5" },
+      { key: "deadlift_top_set", label: "Deadlift Top Set (weight x reps)", type: "text", required: true, placeholder: "e.g. 495 x 3" },
       { key: "pain_flag", label: "Any Pain/Injury Issues?", type: "boolean" },
       { key: "pain_note", label: "Pain/Injury Notes", type: "text", placeholder: "Short note if needed" },
     ],
     requiresPhotos: false,
-    summaryMetrics: ["weight", "squat_top_set", "deadlift_top_set"],
+    summaryMetrics: ["weight", "squat_top_set", "bench_top_set", "deadlift_top_set"],
   },
   endurance: {
     metrics: [
-      { key: "swim_volume", label: "Swim Volume (minutes)", type: "number", required: true },
-      { key: "bike_volume", label: "Bike Volume (minutes)", type: "number", required: true },
-      { key: "run_volume", label: "Run Volume (minutes)", type: "number", required: true },
+      { key: "swim_volume", label: "Swim Volume (total distance)", type: "text", required: true },
+      { key: "bike_volume", label: "Bike Volume (total distance)", type: "text", required: true },
+      { key: "run_volume", label: "Run Volume (total distance)", type: "text", required: true },
       { key: "fatigue", label: "Overall Fatigue (1–5)", type: "rating", required: true, min: 1, max: 5 },
     ],
     requiresPhotos: false,
@@ -116,12 +116,11 @@ export const SPORT_CHECKIN_CONFIGS: Record<SportType, SportCheckinConfig> = {
   },
   crossfit: {
     metrics: [
-      { key: "sessions_completed", label: "Sessions Completed", type: "number", required: true },
       { key: "highlight_performance", label: "Highlighted Performance", type: "text", required: true, placeholder: "WOD result or key lift" },
       { key: "beat_up", label: "How Beat Up Do You Feel? (1–5)", type: "rating", required: true, min: 1, max: 5 },
     ],
     requiresPhotos: false,
-    summaryMetrics: ["sessions_completed", "highlight_performance", "beat_up"],
+    summaryMetrics: ["highlight_performance", "beat_up"],
   },
 };
 

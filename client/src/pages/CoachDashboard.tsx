@@ -191,7 +191,7 @@ export default function CoachDashboard() {
         </div>
 
         {/* Stats Row */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
           <div className="card-premium h-full flex flex-col justify-between group">
             <p className="label-caps">Total Roster</p>
             <div className="flex items-end gap-3 mt-4">
@@ -201,43 +201,24 @@ export default function CoachDashboard() {
           </div>
 
           <div className="card-premium h-full flex flex-col justify-between group">
-            <p className="label-caps">Total Revenue</p>
+            <p className="label-caps">Compliance</p>
             <div className="flex items-end gap-3 mt-4">
               <p className="text-5xl font-display font-bold leading-none tracking-tighter transition-all group-hover:text-primary">
-                ${(billingSummary?.totalRevenueCents || 0) / 100}
+                {athletes?.length ? Math.round((athletesWithCheckin.size / athletes.length) * 100) : 0}%
               </p>
-              <p className="text-sm text-ml-text-dimmed mb-1 font-medium">USD</p>
+              <p className="text-sm text-ml-text-dimmed mb-1 font-medium">CHECKED IN</p>
             </div>
           </div>
 
           <div className="card-premium h-full flex flex-col justify-between group">
-            <p className="label-caps">MRR</p>
+            <p className="label-caps">Upcoming Events</p>
             <div className="flex items-end gap-3 mt-4">
               <p className="text-5xl font-display font-bold leading-none tracking-tighter transition-all group-hover:text-primary">
-                ${(billingSummary?.mrrCents || 0) / 100}
+                {athletes?.filter(a => a.nextShowDate && new Date(a.nextShowDate) > new Date()).length || 0}
               </p>
-              <p className="text-sm text-ml-text-dimmed mb-1 font-medium">/MO</p>
+              <p className="text-sm text-ml-text-dimmed mb-1 font-medium">ATHLETES</p>
             </div>
           </div>
-
-          {dashboardConfig.tiles.map(tile => (
-            <div key={tile.id} className="card-premium h-full flex flex-col justify-between group">
-              <div className="flex items-center justify-between">
-                <p className="label-caps">{tile.title}</p>
-                <div className={`p-2 rounded-xl bg-opacity-10 ${tile.color ? tile.color.replace('text-', 'bg-') : 'bg-muted'} group-hover:scale-110 transition-transform`}>
-                  <tile.icon className={`w-4 h-4 ${tile.color || 'text-muted-foreground'}`} />
-                </div>
-              </div>
-              <div className="flex items-end gap-3 mt-4">
-                <p className={`text-5xl font-display font-bold leading-none tracking-tighter ${tile.color || 'text-foreground'}`}>
-                  {getMetricValue(tile.metricKey)}
-                </p>
-                <p className={`text-sm ${tile.color ? tile.color + '/60' : 'text-ml-text-dimmed'} mb-1 font-medium`}>
-                  {getMetricLabel(tile.metricKey).split(' ')[0].toUpperCase()}
-                </p>
-              </div>
-            </div>
-          ))}
         </div>
 
         {/* Roster Section */}
@@ -421,29 +402,6 @@ function AthleteCard({
             )}
           </div>
 
-          {billing?.billingMode === "external" ? (
-            <Button
-              variant={billing.locked ? "destructive" : "outline"}
-              size="sm"
-              className="h-8 px-3 text-[10px] uppercase font-bold tracking-widest bg-ml-surface hover:bg-ml-elevated"
-              onClick={(e) => {
-                e.stopPropagation();
-                onToggleLock();
-              }}
-            >
-              {billing.locked ? "Unlock" : "Lock"}
-            </Button>
-          ) : (
-            billing?.paymentStatus && billing.paymentStatus !== "active" && (
-              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-lg ${billing.paymentStatus === "past_due" || billing.paymentStatus === "unpaid"
-                ? "text-red-500 bg-red-500/10 border-red-500/20 shadow-red-500/5"
-                : "text-orange-500 bg-orange-500/10 border-orange-500/20 shadow-orange-500/5"
-                }`}>
-                <CreditCard className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">{billing.paymentStatus.replace("_", " ")}</span>
-              </div>
-            )
-          )}
         </div>
       </div>
 
@@ -472,20 +430,9 @@ function AthleteCard({
         {!summaryMetrics.length && (
           <div className="text-xs text-muted-foreground">No metrics yet.</div>
         )}
-        {billing?.lastPaidAt && (
-          <div className="text-xs text-muted-foreground">
-            Last paid: {format(new Date(billing.lastPaidAt), "MMM d")}
-          </div>
-        )}
       </div>
 
-      <div className="mt-auto pt-4 border-t border-white/[0.05] flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <CalendarDays className="w-4 h-4 text-ml-text-dimmed" />
-          <p className="text-xs font-medium text-ml-text-dimmed">
-            Next: <span className="text-foreground font-bold">{athlete.nextShowDate ? format(new Date(athlete.nextShowDate), 'MMM d') : 'NO DATE'}</span>
-          </p>
-        </div>
+      <div className="mt-auto pt-4 border-t border-white/[0.05] flex items-center justify-end">
         <div className="flex items-center text-primary group-hover:translate-x-1 transition-all">
           <span className="text-xs font-bold uppercase tracking-widest mr-1">View</span>
           <ChevronRight className="w-4 h-4" />
