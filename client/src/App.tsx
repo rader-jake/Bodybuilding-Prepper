@@ -22,13 +22,18 @@ import AthleteProtocolsHealth from "./pages/AthleteProtocolsHealth";
 import AthleteCalendar from "./pages/AthleteCalendar";
 import AthleteMessages from "./pages/AthleteMessages";
 import PaymentRequiredLockout from "./pages/PaymentRequiredLockout";
+import BillingSuccess from "./pages/BillingSuccess";
+import BillingCancel from "./pages/BillingCancel";
 import { useAuth } from "@/hooks/use-auth";
 
 // Gate component: if athlete is overdue, show lockout instead of route
 function ProtectedAthleteRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
-  if (user?.role === "athlete" && (user?.paymentStatus === "overdue" || user?.paymentStatus === "due_soon")) {
-    return <PaymentRequiredLockout />;
+  if (user?.role === "athlete") {
+    const isRestricted = ["past_due", "unpaid", "incomplete", "canceled", "waiting_for_coach"].includes(user.paymentStatus || "");
+    if (user.locked || isRestricted) {
+      return <PaymentRequiredLockout />;
+    }
   }
   return <Component />;
 }
@@ -68,6 +73,8 @@ function Router() {
         {() => <ProtectedAthleteRoute component={AthleteMessages} />}
       </Route>
       <Route path="/settings/profile" component={ProfileSettings} />
+      <Route path="/billing/success" component={BillingSuccess} />
+      <Route path="/billing/cancel" component={BillingCancel} />
       <Route component={NotFound} />
     </Switch>
   );

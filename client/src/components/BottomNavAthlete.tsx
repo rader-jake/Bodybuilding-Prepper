@@ -39,7 +39,7 @@ export default function BottomNavAthlete() {
     ];
 
     return (
-        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-lg border-t border-border/50 pb-[env(safe-area-inset-bottom)]">
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-background/80 backdrop-blur-lg border-t border-border/50 pb-[env(safe-area-inset-bottom)]">
             <div className="flex justify-around items-center h-16">
                 {tabs.map((tab) => {
                     const isActive = tab.active(location);

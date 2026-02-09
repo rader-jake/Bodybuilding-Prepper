@@ -35,7 +35,7 @@ export default function AuthPage() {
           </div>
           <div className="space-y-1">
             <CardTitle className="text-3xl font-display uppercase tracking-tight">MetaLifts</CardTitle>
-            <CardDescription className="text-muted-foreground font-medium">For serious bodybuilders</CardDescription>
+            <CardDescription className="text-muted-foreground font-medium">Built for coaches who prep champions</CardDescription>
           </div>
         </CardHeader>
 

@@ -7,34 +7,28 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Plus, Users, Search, AlertCircle, CheckCircle2, ChevronRight, LogOut, CalendarDays, CreditCard } from "lucide-react";
+import { Plus, Users, Search, AlertCircle, CheckCircle2, ChevronRight, CalendarDays, CreditCard } from "lucide-react";
 import { useState } from "react";
 import { format, endOfWeek, isWithinInterval, startOfWeek } from "date-fns";
 import { Redirect, useLocation } from "wouter";
-import { useQuery } from "@tanstack/react-query";
-import { api, type TrainingCompletion } from "@shared/routes";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { api } from "@shared/routes";
 import LayoutCoach from "@/components/LayoutCoach";
 import { apiFetch } from "@/lib/apiFetch";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { TooltipHelper } from "@/components/ui/TooltipHelper";
 import { PREFERENCES_KEYS } from "@/lib/preferences";
 import { getDashboardForUser } from "@/lib/templates";
+import { SPORT_CHECKIN_CONFIGS, SPORT_EVENT_LABELS, SPORT_LABELS, getSportTypeForUser } from "@/lib/sport-configs";
+import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
 
 export default function CoachDashboard() {
   const { user, logout } = useAuth();
-  const { athletes, createAthlete } = useAthletes();
+  const { athletes, createAthlete, updateAthlete } = useAthletes();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const todayKey = format(new Date(), "yyyy-MM-dd");
-
-  const { data: completions } = useQuery({
-    queryKey: [api.trainingCompletions.list.path, todayKey],
-    queryFn: async () => {
-      const url = `${api.trainingCompletions.list.path}?dateKey=${todayKey}`;
-      return await apiFetch<TrainingCompletion[]>(url);
-    },
-    enabled: !!user,
-  });
 
   const { data: coachCheckins } = useQuery({
     queryKey: [api.checkins.queue.path],
@@ -44,20 +38,43 @@ export default function CoachDashboard() {
     enabled: !!user,
   });
 
+  const { data: billingSummary } = useQuery({
+    queryKey: [api.billing.coachSummary.path],
+    queryFn: async () => {
+      return await apiFetch<{
+        totalRevenueCents: number;
+        mrrCents: number;
+        perAthlete: Array<{
+          athleteId: number;
+          paymentStatus: string | null;
+          locked: boolean | null;
+          lastPaidAt: string | null;
+          billingMode: "platform" | "external";
+        }>;
+      }>(api.billing.coachSummary.path);
+    },
+    enabled: !!user,
+  });
+
   const [searchQuery, setSearchQuery] = useState("");
   const [filter, setFilter] = useState<'all' | 'needs-attention' | 'on-track'>('all');
   const [newAthleteName, setNewAthleteName] = useState("");
   const [newAthletePass, setNewAthletePass] = useState("");
+  const [newAthleteEmail, setNewAthleteEmail] = useState("");
+  const [newAthleteFee, setNewAthleteFee] = useState("150");
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
-  // Dynamic Dashboard Logic
-  const dashboardConfig = getDashboardForUser(user || null);
 
   if (!user || user.role !== 'coach') return <Redirect to="/" />;
 
+  // Redirect to onboarding if industry or billing selection is missing
+  if (!user.coachIndustry || !user.billingMode) return <Redirect to="/onboarding/coach-industry" />;
+
+  // Dynamic Dashboard Logic
+  const dashboardConfig = getDashboardForUser(user);
+
   const handleCreateAthlete = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Enforce: cannot create athlete until coachIndustry is set
     if (!user?.coachIndustry) {
       toast({
@@ -68,17 +85,31 @@ export default function CoachDashboard() {
       return;
     }
 
+    if (!newAthleteEmail) {
+      toast({ variant: "destructive", title: "Missing email", description: "Athlete email is required for billing." });
+      return;
+    }
+    const feeCents = Math.round(Number(newAthleteFee || 0) * 100);
+    if (!feeCents || feeCents < 100) {
+      toast({ variant: "destructive", title: "Invalid fee", description: "Enter a monthly fee of at least $1." });
+      return;
+    }
+
     createAthlete.mutate({
       username: newAthleteName,
       password: newAthletePass,
+      email: newAthleteEmail || null,
+      monthlyFeeCents: feeCents,
       role: 'athlete',
       coachId: user.id,
-      sport: user.coachIndustry, // Athlete inherits coach's industry
     }, {
+
       onSuccess: () => {
         setIsDialogOpen(false);
         setNewAthleteName("");
         setNewAthletePass("");
+        setNewAthleteEmail("");
+        setNewAthleteFee("150");
       }
     });
   };
@@ -169,6 +200,26 @@ export default function CoachDashboard() {
             </div>
           </div>
 
+          <div className="card-premium h-full flex flex-col justify-between group">
+            <p className="label-caps">Total Revenue</p>
+            <div className="flex items-end gap-3 mt-4">
+              <p className="text-5xl font-display font-bold leading-none tracking-tighter transition-all group-hover:text-primary">
+                ${(billingSummary?.totalRevenueCents || 0) / 100}
+              </p>
+              <p className="text-sm text-ml-text-dimmed mb-1 font-medium">USD</p>
+            </div>
+          </div>
+
+          <div className="card-premium h-full flex flex-col justify-between group">
+            <p className="label-caps">MRR</p>
+            <div className="flex items-end gap-3 mt-4">
+              <p className="text-5xl font-display font-bold leading-none tracking-tighter transition-all group-hover:text-primary">
+                ${(billingSummary?.mrrCents || 0) / 100}
+              </p>
+              <p className="text-sm text-ml-text-dimmed mb-1 font-medium">/MO</p>
+            </div>
+          </div>
+
           {dashboardConfig.tiles.map(tile => (
             <div key={tile.id} className="card-premium h-full flex flex-col justify-between group">
               <div className="flex items-center justify-between">
@@ -236,8 +287,16 @@ export default function CoachDashboard() {
                       <Input value={newAthleteName} onChange={e => setNewAthleteName(e.target.value)} className="bg-secondary/50" placeholder="e.g. Big Ron" />
                     </div>
                     <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-muted-foreground">Athlete Email</label>
+                      <Input value={newAthleteEmail} onChange={e => setNewAthleteEmail(e.target.value)} className="bg-secondary/50" placeholder="athlete@email.com" />
+                    </div>
+                    <div className="space-y-2">
                       <label className="text-xs font-bold uppercase text-muted-foreground">Initial Password</label>
                       <Input type="password" value={newAthletePass} onChange={e => setNewAthletePass(e.target.value)} className="bg-secondary/50" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold uppercase text-muted-foreground">Monthly Fee (USD)</label>
+                      <Input type="number" min="1" value={newAthleteFee} onChange={e => setNewAthleteFee(e.target.value)} className="bg-secondary/50" />
                     </div>
                     <Button type="submit" className="w-full font-bold uppercase tracking-wider bg-primary mt-2">Create Athlete Profile</Button>
                   </form>
@@ -263,7 +322,20 @@ export default function CoachDashboard() {
                 athlete={athlete}
                 hasCheckedIn={athletesWithCheckin.has(athlete.id)}
                 onOpen={() => setLocation(`/dashboard/athletes/${athlete.id}`)}
-                completion={completions?.find((item) => item.athleteId === athlete.id)}
+                billing={billingSummary?.perAthlete.find((item) => item.athleteId === athlete.id)}
+                onToggleLock={() => {
+                  const b = billingSummary?.perAthlete.find(i => i.athleteId === athlete.id);
+                  if (!b) return;
+                  updateAthlete.mutate({
+                    id: athlete.id,
+                    locked: !b.locked,
+                    paymentStatus: !b.locked ? "active" : "waiting_for_coach"
+                  }, {
+                    onSuccess: () => {
+                      queryClient.invalidateQueries({ queryKey: [api.billing.coachSummary.path] });
+                    }
+                  });
+                }}
               />
             ))}
             {filteredAthletes?.length === 0 && (
@@ -287,16 +359,30 @@ export default function CoachDashboard() {
 function AthleteCard({
   athlete,
   onOpen,
-  completion,
   hasCheckedIn,
+  billing,
+  onToggleLock,
 }: {
   athlete: any;
   onOpen: () => void;
-  completion?: TrainingCompletion;
   hasCheckedIn: boolean;
+  billing?: { paymentStatus: string | null; locked: boolean | null; lastPaidAt: string | null; billingMode: "platform" | "external" };
+  onToggleLock: () => void;
 }) {
   const { checkins } = useCheckins(athlete.id);
   const latestCheckin = checkins?.[0];
+  const sportType = getSportTypeForUser(athlete);
+  const config = SPORT_CHECKIN_CONFIGS[sportType];
+  const summaryMetrics = config.summaryMetrics
+    .slice(0, 3)
+    .map((key) => {
+      const metric = config.metrics.find((item) => item.key === key);
+      return {
+        key,
+        label: metric?.label || key,
+        value: latestCheckin ? getCheckinMetricValue(latestCheckin, key) : undefined,
+      };
+    });
 
   return (
     <div
@@ -316,7 +402,7 @@ function AthleteCard({
               {athlete.displayName || athlete.username}
             </h3>
             <p className="label-caps mt-2 opacity-60">
-              {athlete.currentPhase || 'Off-season'}
+              {SPORT_LABELS[sportType]}
             </p>
           </div>
         </div>
@@ -335,33 +421,62 @@ function AthleteCard({
             )}
           </div>
 
-          {athlete.paymentStatus === "overdue" && (
-            <div className="flex items-center gap-1.5 text-red-500 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 shadow-lg shadow-red-500/5">
-              <CreditCard className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Overdue</span>
-            </div>
-          )}
-          {athlete.paymentStatus === "due_soon" && (
-            <div className="flex items-center gap-1.5 text-orange-500 bg-orange-500/10 px-3 py-1.5 rounded-full border border-orange-500/20 shadow-lg shadow-orange-500/5">
-              <CreditCard className="w-3 h-3" />
-              <span className="text-[10px] font-bold uppercase tracking-wider">Due Soon</span>
-            </div>
+          {billing?.billingMode === "external" ? (
+            <Button
+              variant={billing.locked ? "destructive" : "outline"}
+              size="sm"
+              className="h-8 px-3 text-[10px] uppercase font-bold tracking-widest bg-ml-surface hover:bg-ml-elevated"
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleLock();
+              }}
+            >
+              {billing.locked ? "Unlock" : "Lock"}
+            </Button>
+          ) : (
+            billing?.paymentStatus && billing.paymentStatus !== "active" && (
+              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border shadow-lg ${billing.paymentStatus === "past_due" || billing.paymentStatus === "unpaid"
+                ? "text-red-500 bg-red-500/10 border-red-500/20 shadow-red-500/5"
+                : "text-orange-500 bg-orange-500/10 border-orange-500/20 shadow-orange-500/5"
+                }`}>
+                <CreditCard className="w-3 h-3" />
+                <span className="text-[10px] font-bold uppercase tracking-wider">{billing.paymentStatus.replace("_", " ")}</span>
+              </div>
+            )
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-6">
         <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/[0.03]">
-          <p className="label-caps mb-2">Bodyweight</p>
-          <p className="text-xl font-display font-bold">{latestCheckin?.weight || '--'}<span className="text-xs ml-1 opacity-40 font-sans">LBS</span></p>
+          <p className="label-caps mb-2">Last Check-in</p>
+          <p className="text-sm font-bold">
+            {latestCheckin ? format(new Date(latestCheckin.date), "MMM d") : "—"}
+          </p>
         </div>
         <div className="bg-white/[0.02] rounded-2xl p-4 border border-white/[0.03]">
-          <p className="label-caps mb-2">Training</p>
-          <div className="flex items-center gap-2">
-            <div className={`w-2 h-2 rounded-full ${completion?.completed ? 'bg-primary shadow-[0_0_10px_rgba(38,224,160,0.4)]' : 'bg-white/10'}`} />
-            <p className="text-sm font-bold">{completion?.completed ? 'COMPLETED' : 'PENDING'}</p>
-          </div>
+          <p className="label-caps mb-2">{SPORT_EVENT_LABELS[sportType]} Date</p>
+          <p className="text-sm font-bold">
+            {athlete.nextShowDate ? format(new Date(athlete.nextShowDate), "MMM d") : "—"}
+          </p>
         </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 mb-4">
+        {summaryMetrics.map((metric) => (
+          <div key={metric.key} className="flex items-center justify-between text-sm border border-white/[0.05] rounded-xl px-3 py-2">
+            <span className="text-xs uppercase tracking-widest text-muted-foreground">{metric.label}</span>
+            <span className="font-semibold">{formatMetricValue(metric.value)}</span>
+          </div>
+        ))}
+        {!summaryMetrics.length && (
+          <div className="text-xs text-muted-foreground">No metrics yet.</div>
+        )}
+        {billing?.lastPaidAt && (
+          <div className="text-xs text-muted-foreground">
+            Last paid: {format(new Date(billing.lastPaidAt), "MMM d")}
+          </div>
+        )}
       </div>
 
       <div className="mt-auto pt-4 border-t border-white/[0.05] flex items-center justify-between">

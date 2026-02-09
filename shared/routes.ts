@@ -16,6 +16,8 @@ import {
   healthMarkers,
   trainingCompletions,
   insertTrainingCompletionSchema,
+  billingProfiles,
+  payments,
   messages,
   insertMessageSchema,
 } from './schema';
@@ -107,7 +109,10 @@ export const api = {
     create: {
       method: 'POST' as const,
       path: '/api/athletes',
-      input: insertUserSchema,
+      input: insertUserSchema.extend({
+        monthlyFeeCents: z.coerce.number().int().min(100),
+        email: z.string().email(),
+      }),
       responses: {
         201: z.custom<typeof users.$inferSelect>(),
         400: errorSchemas.validation,
@@ -122,6 +127,83 @@ export const api = {
       responses: {
         200: z.custom<typeof users.$inferSelect>(),
         401: errorSchemas.internal,
+      },
+    },
+    delete: {
+      method: "DELETE" as const,
+      path: "/api/athletes/:id",
+      responses: {
+        200: z.object({ success: z.boolean(), deletedId: z.number() }),
+        401: errorSchemas.internal,
+        404: errorSchemas.notFound,
+      },
+    },
+  },
+  billing: {
+    checkout: {
+      method: "POST" as const,
+      path: "/api/billing/checkout",
+      input: z.object({ athleteId: z.number().optional() }).optional(),
+      responses: {
+        200: z.object({ url: z.string() }),
+      },
+    },
+    portal: {
+      method: "POST" as const,
+      path: "/api/billing/portal",
+      responses: {
+        200: z.object({ url: z.string() }),
+      },
+    },
+    athleteSummary: {
+      method: "GET" as const,
+      path: "/api/billing/athlete",
+      responses: {
+        200: z.object({
+          billingProfile: z.custom<typeof billingProfiles.$inferSelect>().nullable(),
+          payments: z.array(z.custom<typeof payments.$inferSelect>()),
+        }),
+      },
+    },
+    coachSummary: {
+      method: "GET" as const,
+      path: "/api/billing/coach",
+      responses: {
+        200: z.object({
+          totalRevenueCents: z.number(),
+          mrrCents: z.number(),
+          perAthlete: z.array(z.object({
+            athleteId: z.number(),
+            athleteName: z.string(),
+            currentAmountCents: z.number().nullable(),
+            paymentStatus: z.string().nullable(),
+            locked: z.boolean().nullable(),
+            lastPaidAt: z.string().nullable(),
+          })),
+        }),
+      },
+    },
+    updatePrice: {
+      method: "POST" as const,
+      path: "/api/coach/athletes/:id/price",
+      input: z.object({ monthlyFeeCents: z.coerce.number().int().min(100) }),
+      responses: {
+        200: z.object({ success: z.boolean(), currentPriceId: z.string(), currentAmountCents: z.number() }),
+      },
+    },
+    confirm: {
+      method: "POST" as const,
+      path: "/api/billing/confirm",
+      input: z.object({ sessionId: z.string() }),
+      responses: {
+        200: z.object({ success: z.boolean(), paymentStatus: z.string() }),
+      },
+    },
+    webhook: {
+      method: "POST" as const,
+      path: "/api/stripe/webhook",
+      responses: {
+        200: z.object({ received: z.boolean() }),
       },
     },
   },
@@ -392,6 +474,10 @@ export type {
   InsertHealthMarker,
   TrainingCompletion,
   InsertTrainingCompletion,
+  BillingProfile,
+  InsertBillingProfile,
+  Payment,
+  InsertPayment,
   Message,
   InsertMessage,
 } from './schema';

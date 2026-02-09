@@ -7,6 +7,7 @@ export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  email: text("email"),
   role: text("role", { enum: ["coach", "athlete"] }).notNull().default("athlete"),
   coachId: integer("coach_id"),
   displayName: text("display_name"),
@@ -18,28 +19,32 @@ export const users = pgTable("users", {
   nextShowDate: timestamp("next_show_date"),
   workoutPlan: text("workout_plan"), // Placeholder for now
   mealPlan: text("meal_plan"), // Placeholder for now
-  sport: text("sport").default("bodybuilding"), // bodybuilding, powerlifting, endurance, crossfit, etc.
+  // sport: text("sport"), // Deprecated: Athletes inherit from coachIndustry via effectiveIndustry
   coachIndustry: text("coach_industry", { enum: ["bodybuilding", "powerlifting", "endurance", "crossfit"] }), // Coach's selected industry - athletes inherit this
-  paymentStatus: text("payment_status", { enum: ["active", "due_soon", "overdue"] }).default("active"), // Athlete subscription status
+  billingMode: text("billing_mode", { enum: ["platform", "external"] }),
+  profile: jsonb("profile").$type<Record<string, any>>(), // Sport-specific athlete profile fields
+  paymentStatus: text("payment_status", { enum: ["trial", "active", "past_due", "unpaid", "incomplete", "canceled", "waiting_for_coach"] }).default("trial"), // Athlete subscription status
+  locked: boolean("locked").notNull().default(false),
+  stripeAccountId: text("stripe_account_id"), // Stripe Connect account (optional)
 });
 
 export const checkins = pgTable("checkins", {
   id: serial("id").primaryKey(),
   athleteId: integer("athlete_id").notNull(),
   date: timestamp("date").notNull().defaultNow(),
-  weight: text("weight").notNull(),
+  weight: text("weight"),
   photos: jsonb("photos").$type<string[]>(), // Array of URLs
   posePhotos: jsonb("pose_photos").$type<Record<string, string>>(), // Pose key -> photo URL
   poseRatings: jsonb("pose_ratings").$type<Record<string, number>>(), // Pose key -> rating
   notes: text("notes"),
   programChanges: text("program_changes"),
-  sleep: integer("sleep").notNull(),
-  stress: integer("stress").notNull(),
-  adherence: integer("adherence").notNull(),
-  energy: integer("energy").notNull().default(5),
-  hunger: integer("hunger").notNull().default(5),
-  mood: integer("mood").notNull().default(5),
-  digestion: integer("digestion").notNull().default(5),
+  sleep: integer("sleep"),
+  stress: integer("stress"),
+  adherence: integer("adherence"),
+  energy: integer("energy"),
+  hunger: integer("hunger"),
+  mood: integer("mood"),
+  digestion: integer("digestion"),
   coachFeedback: text("coach_feedback"),
   coachChanges: jsonb("coach_changes").$type<string[]>(), // Audit log for coach edits
   status: text("status").default("new"),
@@ -106,6 +111,35 @@ export const trainingCompletions = pgTable("training_completions", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+export const billingProfiles = pgTable("billing_profiles", {
+  id: serial("id").primaryKey(),
+  athleteId: integer("athlete_id").notNull(),
+  coachId: integer("coach_id").notNull(),
+  stripeCustomerId: text("stripe_customer_id"),
+  stripeSubscriptionId: text("stripe_subscription_id"),
+  stripeSubscriptionItemId: text("stripe_subscription_item_id"),
+  currentPriceId: text("current_price_id"),
+  currentAmountCents: integer("current_amount_cents"),
+  currency: text("currency").default("usd"),
+  paymentStatus: text("payment_status", { enum: ["active", "past_due", "unpaid", "incomplete", "canceled"] }).default("incomplete"),
+  locked: boolean("locked").notNull().default(false),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+export const payments = pgTable("payments", {
+  id: serial("id").primaryKey(),
+  athleteId: integer("athlete_id").notNull(),
+  coachId: integer("coach_id").notNull(),
+  stripeInvoiceId: text("stripe_invoice_id"),
+  stripeChargeId: text("stripe_charge_id"),
+  amountCents: integer("amount_cents"),
+  currency: text("currency"),
+  status: text("status", { enum: ["paid", "open", "void", "uncollectible", "failed"] }).notNull(),
+  invoiceUrl: text("invoice_url"),
+  hostedInvoiceUrl: text("hosted_invoice_url"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 export const messages = pgTable("messages", {
   id: serial("id").primaryKey(),
   senderId: integer("sender_id").notNull(),
@@ -128,6 +162,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     relationName: "coach_athletes",
   }),
   checkins: many(checkins),
+  billingProfiles: many(billingProfiles),
+  payments: many(payments),
   sentMessages: many(messages, { relationName: "sent_messages" }),
   receivedMessages: many(messages, { relationName: "received_messages" }),
 }));
@@ -152,6 +188,28 @@ export const checkinsRelations = relations(checkins, ({ one }) => ({
   }),
 }));
 
+export const billingProfilesRelations = relations(billingProfiles, ({ one }) => ({
+  athlete: one(users, {
+    fields: [billingProfiles.athleteId],
+    references: [users.id],
+  }),
+  coach: one(users, {
+    fields: [billingProfiles.coachId],
+    references: [users.id],
+  }),
+}));
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  athlete: one(users, {
+    fields: [payments.athleteId],
+    references: [users.id],
+  }),
+  coach: one(users, {
+    fields: [payments.coachId],
+    references: [users.id],
+  }),
+}));
+
 // Schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
 export const insertCheckinSchema = createInsertSchema(checkins).omit({ id: true, date: true });
@@ -161,10 +219,15 @@ export const insertNutritionPlanSchema = createInsertSchema(nutritionPlans).omit
 export const insertProtocolSchema = createInsertSchema(protocols).omit({ id: true });
 export const insertHealthMarkerSchema = createInsertSchema(healthMarkers).omit({ id: true, date: true });
 export const insertTrainingCompletionSchema = createInsertSchema(trainingCompletions).omit({ id: true, createdAt: true });
+export const insertBillingProfileSchema = createInsertSchema(billingProfiles).omit({ id: true, createdAt: true });
+export const insertPaymentSchema = createInsertSchema(payments).omit({ id: true, createdAt: true });
 export const insertMessageSchema = createInsertSchema(messages).omit({ id: true, createdAt: true });
 
 // Types
-export type User = typeof users.$inferSelect;
+export type User = typeof users.$inferSelect & {
+  effectiveIndustry?: string | null;
+  coachBillingMode?: string | null;
+};
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Checkin = typeof checkins.$inferSelect;
 export type InsertCheckin = z.infer<typeof insertCheckinSchema>;
@@ -180,5 +243,9 @@ export type HealthMarker = typeof healthMarkers.$inferSelect;
 export type InsertHealthMarker = z.infer<typeof insertHealthMarkerSchema>;
 export type TrainingCompletion = typeof trainingCompletions.$inferSelect;
 export type InsertTrainingCompletion = z.infer<typeof insertTrainingCompletionSchema>;
+export type BillingProfile = typeof billingProfiles.$inferSelect;
+export type InsertBillingProfile = z.infer<typeof insertBillingProfileSchema>;
+export type Payment = typeof payments.$inferSelect;
+export type InsertPayment = z.infer<typeof insertPaymentSchema>;
 export type Message = typeof messages.$inferSelect;
 export type InsertMessage = z.infer<typeof insertMessageSchema>;

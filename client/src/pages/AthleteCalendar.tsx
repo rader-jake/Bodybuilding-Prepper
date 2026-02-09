@@ -4,14 +4,14 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Redirect } from "wouter";
 import { differenceInDays, eachDayOfInterval, endOfMonth, format, isSameDay, isSameMonth, startOfMonth } from "date-fns";
 import { CalendarDays } from "lucide-react";
-import { getTemplateForUser } from "@/lib/templates";
+import { SPORT_EVENT_LABELS, getSportTypeForUser } from "@/lib/sport-configs";
 
 export default function AthleteCalendar() {
   const { user } = useAuth();
 
   if (!user || user.role !== "athlete") return <Redirect to="/" />;
 
-  const template = getTemplateForUser(user);
+  const sportType = getSportTypeForUser(user);
 
   const showDate = user.nextShowDate ? new Date(user.nextShowDate) : null;
   const showName = user.nextShowName || "Next event";
@@ -22,15 +22,11 @@ export default function AthleteCalendar() {
   const weekdayOffset = monthStart.getDay();
   const countdownDays = showDate ? differenceInDays(showDate, today) : null;
 
-  const eventLabel = template.sportType === 'bodybuilding' ? 'Show' :
-    template.sportType === 'powerlifting' ? 'Meet' :
-      template.sportType === 'crossfit' ? 'Comp' :
-        template.sportType === 'endurance' ? 'Race' : 'Event';
-
-  const dayLabel = template.sportType === 'bodybuilding' ? 'Stage Day' :
-    template.sportType === 'powerlifting' ? 'Meet Day' :
-      template.sportType === 'crossfit' ? 'Game Day' :
-        template.sportType === 'endurance' ? 'Race Day' : 'Event Day';
+  const eventLabel = SPORT_EVENT_LABELS[sportType];
+  const dayLabel = sportType === 'bodybuilding' ? 'Stage Day' :
+    sportType === 'powerlifting' ? 'Meet Day' :
+      sportType === 'crossfit' ? 'Game Day' :
+        sportType === 'endurance' ? 'Race Day' : 'Event Day';
 
   return (
     <LayoutAthlete>

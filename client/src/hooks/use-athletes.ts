@@ -14,8 +14,10 @@ export function useAthletes() {
     },
   });
 
+  type CreateAthleteInput = InsertUser & { monthlyFeeCents: number };
+
   const createAthlete = useMutation({
-    mutationFn: async (data: InsertUser) => {
+    mutationFn: async (data: CreateAthleteInput) => {
       console.log(`Attempting to create athlete: ${data.username}`);
       return await apiFetch<User>(api.athletes.create.path, {
         method: api.athletes.create.method,
@@ -48,5 +50,20 @@ export function useAthletes() {
     },
   });
 
-  return { athletes, isLoading, createAthlete, updateAthlete };
+  const deleteAthlete = useMutation({
+    mutationFn: async (athleteId: number) => {
+      return await apiFetch<{ success: boolean; deletedId: number }>(api.athletes.delete.path.replace(":id", String(athleteId)), {
+        method: api.athletes.delete.method,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [api.athletes.list.path] });
+      toast({ title: "Deleted", description: "Athlete removed" });
+    },
+    onError: (error: Error) => {
+      toast({ variant: "destructive", title: "Error", description: error.message });
+    },
+  });
+
+  return { athletes, isLoading, createAthlete, updateAthlete, deleteAthlete };
 }

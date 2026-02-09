@@ -1,24 +1,20 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { insertCheckinSchema } from "@shared/schema";
 import type { InsertCheckin } from "@shared/routes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
-import { Card, CardContent } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useState, useMemo } from "react";
 import { z } from "zod";
 import { POSE_KEYS, type PoseKey } from "@/lib/poses";
 import { api } from "@shared/routes";
 import { apiFetch } from "@/lib/apiFetch";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronRight, Camera, Info } from "lucide-react";
-import { TooltipHelper } from "@/components/ui/TooltipHelper";
-import { PREFERENCES_KEYS } from "@/lib/preferences";
+import { ChevronRight, Camera } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { getTemplateForUser, CheckInTemplate, FieldConfig } from "@/lib/templates";
+import { SPORT_CHECKIN_CONFIGS, getSportTypeForUser } from "@/lib/sport-configs";
 
 interface CheckinFormProps {
   onSubmit: (data: InsertCheckin) => void;
@@ -26,51 +22,43 @@ interface CheckinFormProps {
   athleteId: number;
 }
 
-export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps) {
+export function MinimalCheckInForm({ onSubmit, isLoading, athleteId }: CheckinFormProps) {
   const { user } = useAuth();
-  const template = useMemo(() => getTemplateForUser(user || null), [user]);
+  const sportType = useMemo(() => getSportTypeForUser(user || null), [user]);
+  const config = SPORT_CHECKIN_CONFIGS[sportType];
 
   // Build a dynamic Zod schema based on the template
   const dynamicSchema = useMemo(() => {
-    let schemaShape: any = {};
-
-    // Start with core fields from insertCheckinSchema
-    // We relax the strictness since we are manually constructing the payload
-    schemaShape = {
-      // Core fields we always expect or handle manually
-      weight: z.string().min(1, "Weight is required"),
+    const schemaShape: Record<string, z.ZodTypeAny> = {
+      note: z.string().optional(),
       posePhotos: z.any().optional(),
-      notes: z.string().optional(),
     };
 
-    template.fields.forEach(field => {
-      if (field.id === 'weight' || field.id === 'posePhotos' || field.id === 'notes') return; // Handled
-
-      if (field.type === 'number' || field.type === 'rating') {
-        let validator: any = z.coerce.number();
+    config.metrics.forEach((field) => {
+      if (field.type === "number" || field.type === "rating") {
+        let validator: z.ZodTypeAny = z.coerce.number();
         if (field.required) validator = validator.min(1, `${field.label} is required`);
         else validator = validator.optional();
-        schemaShape[field.id] = validator;
+        schemaShape[field.key] = validator;
+      } else if (field.type === "boolean") {
+        schemaShape[field.key] = z.coerce.boolean().optional();
       } else {
-        // Text / Textarea
-        let validator: any = z.string();
+        let validator: z.ZodTypeAny = z.string();
         if (field.required) validator = validator.min(1, `${field.label} is required`);
         else validator = validator.optional();
-        schemaShape[field.id] = validator;
+        schemaShape[field.key] = validator;
       }
     });
 
     return z.object(schemaShape);
-  }, [template]);
+  }, [config]);
 
   type FormData = z.infer<typeof dynamicSchema>;
 
   const defaultValues: any = { athleteId };
-  // Set defaults
-  template.fields.forEach(f => {
-    if (f.type === 'rating') defaultValues[f.id] = 5;
-    if (f.id === 'sleep') defaultValues[f.id] = 7;
-    if (f.id === 'digestion') defaultValues[f.id] = 8;
+  config.metrics.forEach((f) => {
+    if (f.type === "rating") defaultValues[f.key] = f.max ?? 5;
+    if (f.type === "boolean") defaultValues[f.key] = false;
   });
 
   const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<FormData>({
@@ -81,21 +69,6 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
   const [posePhotos, setPosePhotos] = useState<Record<string, string>>({});
   const [uploadingPose, setUploadingPose] = useState<PoseKey | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [showAdvanced, setShowAdvanced] = useState(false);
-
-  // Group fields by section
-  const sections = useMemo(() => {
-    const groups: Record<string, FieldConfig[]> = {};
-    const order = ['Vitals', 'Physique', 'Performance', 'Volume', 'Recovery', 'Biofeedback', 'Compliance', 'Feedback'];
-
-    template.fields.forEach(f => {
-      const sec = f.section || 'Other';
-      if (!groups[sec]) groups[sec] = [];
-      groups[sec].push(f);
-    });
-
-    return order.map(key => ({ title: key, fields: groups[key] || [] })).filter(g => g.fields.length > 0);
-  }, [template]);
 
   const uploadPosePhoto = async (file: File) => {
     const { signature, timestamp, cloudName, apiKey } = await apiFetch<{
@@ -142,41 +115,85 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
   };
 
   const handleFormSubmit = (formData: any) => {
-    // Map flat form data to core + data structure
+    if (config.requiresPhotos) {
+      const missing = POSE_KEYS.filter((pose) => !posePhotos[pose.key]);
+      if (missing.length) {
+        setUploadError("Please upload front, side, and back photos.");
+        return;
+      }
+    }
+
+    const metrics = config.metrics
+      .map((metric) => ({
+        key: metric.key,
+        label: metric.label,
+        value: formData[metric.key],
+      }))
+      .filter((metric) => metric.value !== undefined && metric.value !== "");
+
+    const mediaUrls = config.requiresPhotos
+      ? POSE_KEYS.map((pose) => posePhotos[pose.key]).filter(Boolean)
+      : [];
+
     const submission: any = {
       athleteId,
-      data: {}
+      notes: formData.note || null,
+      data: {
+        metrics,
+        mediaUrls,
+        sportType,
+      },
     };
 
-    template.fields.forEach(field => {
-      const val = formData[field.id];
-      if (field.isCore) {
-        submission[field.id] = val;
-      } else {
-        if (val !== undefined && val !== "") {
-          submission.data[field.id] = val;
-        }
-      }
-    });
+    const weightMetric = metrics.find((metric) => metric.key === "weight");
+    if (weightMetric?.value !== undefined && weightMetric?.value !== "") {
+      submission.weight = String(weightMetric.value);
+    }
 
-    // Ensure required core fields that might be missing are handled gracefully
-    // We only provide defaults if the field is actually in the template but somehow missing (unlikely with react-hook-form)
-    // The previous forced injection of sleep/stress/etc for ALL sports is removed.
+    if (config.requiresPhotos) {
+      submission.posePhotos = posePhotos;
+      submission.photos = mediaUrls;
+    }
 
     onSubmit(submission);
   };
 
-  const renderField = (field: FieldConfig) => {
-    // Large, prominent inputs for Weight or Key Performance Metrics
-    const isProminent = field.id === 'weight' || field.section === 'Performance' || field.section === 'Volume';
-
-    if (field.type === 'number' && field.id === 'weight') {
+  const renderMetricField = (field: (typeof config.metrics)[number]) => {
+    if (field.type === "rating") {
       return (
-        <div className="space-y-4" key={field.id}>
+        <div key={field.key} className="space-y-4 py-2">
+          <FeedbackWrapper
+            label={field.label}
+            value={watch(field.key) as number}
+            onValueChange={(v) => setValue(field.key, v)}
+            min={field.min ?? 1}
+            max={field.max ?? 5}
+          />
+        </div>
+      );
+    }
+
+    if (field.type === "boolean") {
+      return (
+        <label key={field.key} className="flex items-center gap-3 bg-white/[0.02] border border-white/5 rounded-2xl p-4">
+          <Checkbox
+            checked={!!watch(field.key)}
+            onCheckedChange={(value) => setValue(field.key, value === true)}
+          />
+          <input type="hidden" {...register(field.key)} />
+          <span className="text-sm font-semibold">{field.label}</span>
+        </label>
+      );
+    }
+
+    const isLargeNumber = field.key === "weight";
+    if (isLargeNumber && field.type === "number") {
+      return (
+        <div className="space-y-4" key={field.key}>
           <Label className="label-caps">{field.label}</Label>
           <div className="relative group max-w-[200px]">
             <Input
-              {...register(field.id)}
+              {...register(field.key)}
               placeholder="0.0"
               className="text-6xl font-display font-bold bg-transparent border-none text-primary p-0 h-auto placeholder:text-white/5 focus-visible:ring-0 rounded-none border-b-2 border-white/5 focus:border-primary transition-all duration-500"
             />
@@ -184,17 +201,49 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
               LBS
             </div>
           </div>
-          {errors[field.id] && <p className="text-destructive text-xs font-bold uppercase tracking-wider">{(errors[field.id] as any)?.message}</p>}
+          {errors[field.key] && <p className="text-destructive text-xs font-bold uppercase tracking-wider">{(errors[field.key] as any)?.message}</p>}
         </div>
       );
     }
 
-    if (field.type === 'photos') {
+    const isTextArea = field.type === "text" && field.key.includes("highlight");
+    if (isTextArea) {
       return (
-        <div className="space-y-6" key={field.id}>
+        <div className="space-y-4" key={field.key}>
+          <Label className="label-caps">{field.label}</Label>
+          <Textarea
+            {...register(field.key)}
+            placeholder={field.placeholder || "Enter details..."}
+            className="min-h-[140px] bg-white/[0.02] border border-white/5 rounded-2xl p-6 focus:bg-white/[0.05] focus:border-primary/40 transition-all placeholder:opacity-20 scroll-hide"
+          />
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-3" key={field.key}>
+        <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">{field.label}</Label>
+        <Input
+          {...register(field.key)}
+          type={field.type === "number" ? "number" : "text"}
+          placeholder={field.placeholder}
+          className="bg-secondary/5 border-transparent h-11 px-4 focus:bg-secondary/10 focus:border-primary/20 transition-all rounded-lg"
+        />
+      </div>
+    );
+  };
+
+  return (
+    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 max-w-xl mx-auto">
+      <div className="space-y-8">
+        {config.metrics.map((metric) => renderMetricField(metric))}
+      </div>
+
+      {config.requiresPhotos && (
+        <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <Label className="label-caps">{field.label}</Label>
-            {field.required && <span className="label-caps !text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">Required</span>}
+            <Label className="label-caps">Posing Photos</Label>
+            <span className="label-caps !text-primary bg-primary/10 px-3 py-1 rounded-full border border-primary/20">Required</span>
           </div>
           {uploadError && <p className="text-xs text-destructive bg-destructive/10 p-4 rounded-2xl border border-destructive/20 font-bold uppercase tracking-wider">{uploadError}</p>}
           <div className="grid grid-cols-2 gap-4">
@@ -212,7 +261,7 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
                 )}
 
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover/photo:opacity-100 transition-opacity flex items-end p-4">
-                  <p className="text-[10px] font-bold text-white uppercase tracking-widest">{posePhotos[pose.key] ? 'Replace Photo' : 'Upload Pose'}</p>
+                  <p className="text-[10px] font-bold text-white uppercase tracking-widest">{posePhotos[pose.key] ? "Replace Photo" : "Upload Pose"}</p>
                 </div>
 
                 {uploadingPose === pose.key && (
@@ -236,79 +285,15 @@ export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps
             ))}
           </div>
         </div>
-      );
-    }
+      )}
 
-    if (field.type === 'rating') {
-      return (
-        <div key={field.id} className="space-y-4 py-2">
-          <FeedbackWrapper
-            label={field.label}
-            value={watch(field.id) as number}
-            onValueChange={(v) => setValue(field.id, v)}
-            min={field.min ?? 1}
-            max={field.max ?? 10}
-          />
-        </div>
-      );
-    }
-
-    if (field.type === 'textarea') {
-      return (
-        <div className="space-y-4" key={field.id}>
-          <Label className="label-caps">{field.label}</Label>
-          <Textarea
-            {...register(field.id)}
-            placeholder={field.placeholder || "Enter notes..."}
-            className="min-h-[160px] bg-white/[0.02] border border-white/5 rounded-2xl p-6 focus:bg-white/[0.05] focus:border-primary/40 transition-all placeholder:opacity-20 scroll-hide"
-          />
-        </div>
-      );
-    }
-
-    // Prominent text inputs (e.g. Squat Top Set)
-    if (isProminent && field.type !== 'number') {
-      return (
-        <div className="space-y-3" key={field.id}>
-          <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">{field.label}</Label>
-          <Input
-            {...register(field.id)}
-            type="text"
-            placeholder={field.placeholder}
-            className="text-lg font-bold bg-secondary/5 border-transparent h-12 px-4 focus:bg-secondary/10 focus:border-primary/20 transition-all rounded-lg"
-          />
-        </div>
-      );
-    }
-
-    // Default to Standard Input
-    return (
-      <div className="space-y-3" key={field.id}>
-        <Label className="text-muted-foreground uppercase text-[10px] font-bold tracking-[0.1em]">{field.label}</Label>
-        <Input
-          {...register(field.id)}
-          type={field.type === 'number' ? 'number' : 'text'}
-          placeholder={field.placeholder}
-          className="bg-secondary/5 border-transparent h-11 px-4 focus:bg-secondary/10 focus:border-primary/20 transition-all rounded-lg"
+      <div className="space-y-4">
+        <Label className="label-caps">Note (Optional)</Label>
+        <Textarea
+          {...register("note")}
+          placeholder="Short note for your coach..."
+          className="min-h-[140px] bg-white/[0.02] border border-white/5 rounded-2xl p-6 focus:bg-white/[0.05] focus:border-primary/40 transition-all placeholder:opacity-20 scroll-hide"
         />
-        {field.helpText && <p className="text-[10px] text-muted-foreground">{field.helpText}</p>}
-      </div>
-    );
-  };
-
-  return (
-    <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-8 max-w-xl mx-auto">
-      <div className="space-y-12">
-        {sections.map(section => (
-          <div key={section.title} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
-            {/* Minimal section header, only if needed */}
-            {/* <h4 className="text-[10px] font-bold text-muted-foreground uppercase tracking-[0.2em] opacity-40">{section.title}</h4> */}
-
-            <div className="space-y-8">
-              {section.fields.map(f => renderField(f))}
-            </div>
-          </div>
-        ))}
       </div>
 
       <div className="pt-12 pb-24">
@@ -366,3 +351,6 @@ function FeedbackWrapper({ label, value, onValueChange, min = 1, max = 10 }: { l
   );
 }
 
+export function CheckinForm({ onSubmit, isLoading, athleteId }: CheckinFormProps) {
+  return <MinimalCheckInForm onSubmit={onSubmit} isLoading={isLoading} athleteId={athleteId} />;
+}

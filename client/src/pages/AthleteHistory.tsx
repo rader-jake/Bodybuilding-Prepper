@@ -8,11 +8,15 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { POSE_KEYS, type PoseKey } from "@/lib/poses";
 import { useState } from "react";
+import { SPORT_CHECKIN_CONFIGS, getSportTypeForUser } from "@/lib/sport-configs";
+import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
 
 export default function AthleteHistory() {
   const { user } = useAuth();
   const { checkins, isLoading } = useCheckins(user?.id);
   const [selectedPose, setSelectedPose] = useState<PoseKey>(POSE_KEYS[0].key);
+  const sportType = getSportTypeForUser(user || null);
+  const config = SPORT_CHECKIN_CONFIGS[sportType];
 
   if (!user || user.role !== 'athlete') return <Redirect to="/" />;
 
@@ -36,7 +40,7 @@ export default function AthleteHistory() {
           </div>
         )}
 
-        {checkins && checkins.length > 0 && (
+        {checkins && checkins.length > 0 && config.requiresPhotos && (
           <Card className="border-border bg-card">
             <div className="px-6 py-4 border-b border-border flex flex-col md:flex-row md:items-center md:justify-between gap-3">
               <div>
@@ -89,23 +93,21 @@ export default function AthleteHistory() {
           <Card key={checkin.id} className="overflow-hidden border-border bg-card">
             <div className="bg-secondary/30 px-6 py-4 flex justify-between items-center border-b border-border">
               <span className="font-display font-bold text-lg tracking-wide">{format(new Date(checkin.date), 'MMMM d, yyyy')}</span>
-              <span className="font-mono text-primary font-bold">{checkin.weight} lbs</span>
+              <span className="text-xs text-muted-foreground">
+                {config.requiresPhotos && checkin.posePhotos ? "Photos included" : "Check-in"}
+              </span>
             </div>
             
             <div className="p-6 space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-center">
-                 <div className="p-3 rounded bg-background border border-border">
-                   <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Sleep</div>
-                   <div className="font-mono font-bold text-lg">{checkin.sleep}/10</div>
-                 </div>
-                 <div className="p-3 rounded bg-background border border-border">
-                   <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Stress</div>
-                   <div className="font-mono font-bold text-lg text-orange-500">{checkin.stress}/10</div>
-                 </div>
-                 <div className="p-3 rounded bg-background border border-border">
-                   <div className="text-xs text-muted-foreground uppercase font-bold mb-1">Adherence</div>
-                   <div className="font-mono font-bold text-lg text-emerald-500">{checkin.adherence}/10</div>
-                 </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-center">
+                {config.metrics.map((metric) => (
+                  <div key={metric.key} className="p-3 rounded bg-background border border-border">
+                    <div className="text-xs text-muted-foreground uppercase font-bold mb-1">{metric.label}</div>
+                    <div className="font-mono font-bold text-lg">
+                      {formatMetricValue(getCheckinMetricValue(checkin, metric.key))}
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {checkin.coachFeedback ? (
@@ -119,12 +121,6 @@ export default function AthleteHistory() {
               ) : (
                 <div className="text-center py-2 text-sm text-muted-foreground italic">
                   Awaiting coach feedback...
-                </div>
-              )}
-              {checkin.programChanges && (
-                <div className="rounded-lg border border-border bg-secondary/20 p-4">
-                  <div className="text-xs text-muted-foreground uppercase font-bold mb-2">Program Changes</div>
-                  <p className="text-sm text-muted-foreground">{checkin.programChanges}</p>
                 </div>
               )}
             </div>

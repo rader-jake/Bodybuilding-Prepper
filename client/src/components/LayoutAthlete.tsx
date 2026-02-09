@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { Link } from "wouter";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Home, FileText, Clock, Activity, Settings, Layout, Menu, X, LogOut, HeartPulse, CalendarDays, MessageSquare } from "lucide-react";
+import { Home, FileText, Clock, Activity, Settings, Layout, Menu, X, LogOut, HeartPulse, CalendarDays, MessageSquare, Zap } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import BottomNavAthlete from "./BottomNavAthlete";
 
@@ -110,8 +110,8 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
             </div>
           </div>
           {isMobileMenuOpen && (
-            <nav id="athlete-mobile-menu" className="md:hidden fixed left-0 top-[calc(57px+env(safe-area-inset-top))] z-40 w-screen h-[calc(100dvh-57px-env(safe-area-inset-top))] bg-background border-t border-border/50">
-              <div className="h-full w-full px-4 py-6 flex flex-col overflow-y-auto">
+            <nav id="athlete-mobile-menu" className="md:hidden fixed left-0 top-[calc(57px+env(safe-area-inset-top))] z-50 w-screen h-[calc(100dvh-57px-env(safe-area-inset-top))] bg-background border-t border-border/50">
+              <div className="h-full w-full px-4 py-6 flex flex-col overflow-y-auto pb-[calc(80px+env(safe-area-inset-bottom))]">
                 <ul className="grid gap-2 flex-1">
                   <li>
                     <Link
@@ -213,6 +213,20 @@ export default function LayoutAthlete({ children }: { children: React.ReactNode 
         </header>
 
         <main className="flex-1 overflow-y-auto scroll-y w-full">
+          {user?.paymentStatus === "trial" && (
+            <div className="bg-primary/10 border-b border-primary/20 px-6 py-3">
+              <div className="max-w-6xl mx-auto flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+                  <Zap className="w-4 h-4 text-primary" />
+                </div>
+                <p className="text-sm font-medium">
+                  {(user as any)?.coachBillingMode === "platform"
+                    ? "Your coach uses MetaLifts to manage billing automatically. Add a payment method to continue uninterrupted."
+                    : "Your coach handles billing outside MetaLifts. Please follow your coach’s instructions for payment."}
+                </p>
+              </div>
+            </div>
+          )}
           <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 mb-24 md:mb-0">
             {children}
           </div>

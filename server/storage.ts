@@ -8,6 +8,8 @@ import {
   protocols,
   healthMarkers,
   trainingCompletions,
+  billingProfiles,
+  payments,
   messages,
   type User,
   type InsertUser,
@@ -25,10 +27,14 @@ import {
   type InsertHealthMarker,
   type TrainingCompletion,
   type InsertTrainingCompletion,
+  type BillingProfile,
+  type InsertBillingProfile,
+  type Payment,
+  type InsertPayment,
   type Message,
   type InsertMessage,
 } from "@shared/schema";
-import { eq, desc, inArray, and, or } from "drizzle-orm";
+import { eq, desc, inArray, and, or, aliasedTable } from "drizzle-orm";
 
 export interface IStorage {
   // User/Auth
@@ -37,6 +43,7 @@ export interface IStorage {
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, user: Partial<User>): Promise<User>;
   getAthletesByCoach(coachId: number): Promise<User[]>;
+  deleteAthlete(coachId: number, athleteId: number): Promise<number>;
 
   // Checkins
   createCheckin(checkin: InsertCheckin): Promise<Checkin>;
@@ -82,6 +89,18 @@ export interface IStorage {
   updateTrainingCompletion(id: number, completion: Partial<InsertTrainingCompletion>): Promise<TrainingCompletion>;
   getTrainingCompletion(id: number): Promise<TrainingCompletion | undefined>;
 
+  // Billing
+  createBillingProfile(profile: InsertBillingProfile): Promise<BillingProfile>;
+  updateBillingProfile(id: number, profile: Partial<InsertBillingProfile>): Promise<BillingProfile>;
+  getBillingProfileByAthlete(athleteId: number): Promise<BillingProfile | undefined>;
+  getBillingProfilesByCoach(coachId: number): Promise<BillingProfile[]>;
+  getBillingProfileBySubscriptionId(subscriptionId: string): Promise<BillingProfile | undefined>;
+  getBillingProfileByCustomerId(customerId: string): Promise<BillingProfile | undefined>;
+  createPayment(payment: InsertPayment): Promise<Payment>;
+  upsertPaymentByInvoice(invoiceId: string, payment: InsertPayment): Promise<Payment>;
+  getPaymentsByAthlete(athleteId: number): Promise<Payment[]>;
+  getPaymentsByCoach(coachId: number): Promise<Payment[]>;
+
   // Messages
   getMessagesBetweenUsers(user1Id: number, user2Id: number): Promise<Message[]>;
   createMessage(message: InsertMessage): Promise<Message>;
@@ -90,27 +109,106 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   async getUser(id: number): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user;
+    const coach = aliasedTable(users, "coach");
+    const results = await db
+      .select({
+        user: users,
+        coachIndustry: coach.coachIndustry,
+        coachBillingMode: coach.billingMode,
+      })
+      .from(users)
+      .leftJoin(coach, eq(users.coachId, coach.id))
+      .where(eq(users.id, id)) as any[];
+
+    const result = results[0];
+    if (!result) return undefined;
+
+    return {
+      ...(result as any).user,
+      effectiveIndustry: (result as any).user.role === "coach" ? (result as any).user.coachIndustry : (result as any).coachIndustry,
+      coachBillingMode: (result as any).coachBillingMode,
+    } as User;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.username, username));
-    return user;
+    const coach = aliasedTable(users, "coach");
+    const results = await db
+      .select({
+        user: users,
+        coachIndustry: coach.coachIndustry,
+        coachBillingMode: coach.billingMode,
+      })
+      .from(users)
+      .leftJoin(coach, eq(users.coachId, coach.id))
+      .where(eq(users.username, username)) as any[];
+
+    const result = results[0];
+    if (!result) return undefined;
+
+    return {
+      ...(result as any).user,
+      effectiveIndustry: (result as any).user.role === "coach" ? (result as any).user.coachIndustry : (result as any).coachIndustry,
+      coachBillingMode: (result as any).coachBillingMode,
+    } as User;
   }
 
   async createUser(user: InsertUser): Promise<User> {
     const [newUser] = await db.insert(users).values(user).returning();
-    return newUser;
+    // Return with industry
+    const created = await this.getUser(newUser.id);
+    if (!created) throw new Error("Failed to retrieve created user");
+    return created;
   }
 
   async updateUser(id: number, user: Partial<User>): Promise<User> {
     const [updated] = await db.update(users).set(user).where(eq(users.id, id)).returning();
-    return updated;
+    const updatedUser = await this.getUser(updated.id);
+    if (!updatedUser) throw new Error("Failed to retrieve updated user");
+    return updatedUser;
   }
 
   async getAthletesByCoach(coachId: number): Promise<User[]> {
-    return await db.select().from(users).where(eq(users.coachId, coachId));
+    const coach = aliasedTable(users, "coach");
+    const results = await db
+      .select({
+        user: users,
+        coachIndustry: coach.coachIndustry,
+        coachBillingMode: coach.billingMode,
+      })
+      .from(users)
+      .leftJoin(coach, eq(users.coachId, coach.id))
+      .where(eq(users.coachId, coachId));
+
+    return results.map(row => ({
+      ...(row as any).user,
+      effectiveIndustry: (row as any).user.role === "coach" ? (row as any).user.coachIndustry : (row as any).coachIndustry,
+      coachBillingMode: (row as any).coachBillingMode,
+    } as User));
+  }
+
+  async deleteAthlete(coachId: number, athleteId: number): Promise<number> {
+    return await db.transaction(async (tx) => {
+      const [athlete] = await tx.select().from(users).where(eq(users.id, athleteId));
+      if (!athlete || athlete.coachId !== coachId) return 0;
+
+      const blocks = await tx.select({ id: trainingBlocks.id }).from(trainingBlocks).where(eq(trainingBlocks.athleteId, athleteId));
+      const blockIds = blocks.map((b) => b.id);
+      if (blockIds.length) {
+        await tx.delete(weeklyTrainingPlans).where(inArray(weeklyTrainingPlans.trainingBlockId, blockIds));
+      }
+      await tx.delete(trainingBlocks).where(eq(trainingBlocks.athleteId, athleteId));
+      await tx.delete(nutritionPlans).where(eq(nutritionPlans.athleteId, athleteId));
+      await tx.delete(protocols).where(eq(protocols.athleteId, athleteId));
+      await tx.delete(healthMarkers).where(eq(healthMarkers.athleteId, athleteId));
+      await tx.delete(trainingCompletions).where(eq(trainingCompletions.athleteId, athleteId));
+      await tx.delete(checkins).where(eq(checkins.athleteId, athleteId));
+      await tx.delete(billingProfiles).where(eq(billingProfiles.athleteId, athleteId));
+      await tx.delete(payments).where(eq(payments.athleteId, athleteId));
+      await tx.delete(messages).where(or(eq(messages.senderId, athleteId), eq(messages.receiverId, athleteId)));
+
+      const deleted = await tx.delete(users).where(eq(users.id, athleteId)).returning({ id: users.id });
+      return deleted.length ? deleted[0].id : 0;
+    });
   }
 
   async createCheckin(checkin: InsertCheckin): Promise<Checkin> {
@@ -310,6 +408,58 @@ export class DatabaseStorage implements IStorage {
   async getTrainingCompletion(id: number): Promise<TrainingCompletion | undefined> {
     const [completion] = await db.select().from(trainingCompletions).where(eq(trainingCompletions.id, id));
     return completion;
+  }
+
+  async createBillingProfile(profile: InsertBillingProfile): Promise<BillingProfile> {
+    const [created] = await db.insert(billingProfiles).values(profile as any).returning();
+    return created;
+  }
+
+  async updateBillingProfile(id: number, profile: Partial<InsertBillingProfile>): Promise<BillingProfile> {
+    const [updated] = await db.update(billingProfiles).set(profile as any).where(eq(billingProfiles.id, id)).returning();
+    return updated;
+  }
+
+  async getBillingProfileByAthlete(athleteId: number): Promise<BillingProfile | undefined> {
+    const [profile] = await db.select().from(billingProfiles).where(eq(billingProfiles.athleteId, athleteId));
+    return profile;
+  }
+
+  async getBillingProfilesByCoach(coachId: number): Promise<BillingProfile[]> {
+    return await db.select().from(billingProfiles).where(eq(billingProfiles.coachId, coachId));
+  }
+
+  async getBillingProfileBySubscriptionId(subscriptionId: string): Promise<BillingProfile | undefined> {
+    const [profile] = await db.select().from(billingProfiles).where(eq(billingProfiles.stripeSubscriptionId, subscriptionId));
+    return profile;
+  }
+
+  async getBillingProfileByCustomerId(customerId: string): Promise<BillingProfile | undefined> {
+    const [profile] = await db.select().from(billingProfiles).where(eq(billingProfiles.stripeCustomerId, customerId));
+    return profile;
+  }
+
+  async createPayment(payment: InsertPayment): Promise<Payment> {
+    const [created] = await db.insert(payments).values(payment as any).returning();
+    return created;
+  }
+
+  async upsertPaymentByInvoice(invoiceId: string, payment: InsertPayment): Promise<Payment> {
+    const [existing] = await db.select().from(payments).where(eq(payments.stripeInvoiceId, invoiceId));
+    if (existing) {
+      const [updated] = await db.update(payments).set(payment as any).where(eq(payments.id, existing.id)).returning();
+      return updated;
+    }
+    const [created] = await db.insert(payments).values(payment as any).returning();
+    return created;
+  }
+
+  async getPaymentsByAthlete(athleteId: number): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.athleteId, athleteId)).orderBy(desc(payments.createdAt));
+  }
+
+  async getPaymentsByCoach(coachId: number): Promise<Payment[]> {
+    return await db.select().from(payments).where(eq(payments.coachId, coachId)).orderBy(desc(payments.createdAt));
   }
 
   async getMessagesBetweenUsers(user1Id: number, user2Id: number): Promise<Message[]> {

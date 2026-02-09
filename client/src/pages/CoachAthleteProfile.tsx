@@ -1,5 +1,6 @@
 import { useAuth } from "@/hooks/use-auth";
 import { useAthletes } from "@/hooks/use-athletes";
+import { useToast } from "@/hooks/use-toast";
 import { useCheckins } from "@/hooks/use-checkins";
 import { useHealthMarkers, useNutritionPlans, useProtocols, useTrainingBlocks, useWeeklyTrainingPlans, useTrainingCompletions } from "@/hooks/use-plans";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -12,19 +13,47 @@ import { useEffect, useState } from "react";
 import { format, differenceInDays } from "date-fns";
 import { Redirect, useLocation, useRoute } from "wouter";
 import { POSE_KEYS } from "@/lib/poses";
-import { getTemplateForUser } from "@/lib/templates";
+import { SPORT_CHECKIN_CONFIGS, SPORT_EVENT_LABELS, SPORT_PROFILE_CONFIGS, getSportTypeForUser } from "@/lib/sport-configs";
+import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import type { SportType } from "@shared/types";
+import { useQuery } from "@tanstack/react-query";
+import { apiFetch } from "@/lib/apiFetch";
 
 export default function CoachAthleteProfile() {
   const { user } = useAuth();
-  const { athletes, isLoading, updateAthlete } = useAthletes();
+  const { athletes, isLoading, updateAthlete, deleteAthlete } = useAthletes();
+  const { toast } = useToast();
   const [, params] = useRoute("/dashboard/athletes/:id");
   const [, setLocation] = useLocation();
 
   const athleteId = Number(params?.id);
   const athlete = athletes?.find((item) => item.id === athleteId);
 
-  // Determine template based on athlete's sport (defaults to bodybuilding)
-  const template = getTemplateForUser(athlete || null);
+  const sportType = getSportTypeForUser(athlete || null);
+  const profileConfig = SPORT_PROFILE_CONFIGS[sportType];
+  const checkinConfig = SPORT_CHECKIN_CONFIGS[sportType];
+
+  const { data: coachBilling } = useQuery({
+    queryKey: [api.billing.coachSummary.path],
+    queryFn: async () => {
+      return await apiFetch<{
+        totalRevenueCents: number;
+        mrrCents: number;
+        perAthlete: Array<{
+          athleteId: number;
+          athleteName: string;
+          currentAmountCents: number | null;
+          paymentStatus: string | null;
+          locked: boolean | null;
+          lastPaidAt: string | null;
+        }>;
+      }>(api.billing.coachSummary.path);
+    },
+    enabled: !!user,
+  });
+
+  const billingForAthlete = coachBilling?.perAthlete.find((row) => row.athleteId === athleteId);
   const { checkins } = useCheckins(athleteId);
   const { trainingBlocks, createTrainingBlock } = useTrainingBlocks(athleteId);
   const { weeklyPlans, createWeeklyPlan } = useWeeklyTrainingPlans(athleteId);
@@ -58,6 +87,9 @@ export default function CoachAthleteProfile() {
   const [healthScore, setHealthScore] = useState("");
   const [healthNotes, setHealthNotes] = useState("");
   const [selectedPose, setSelectedPose] = useState(POSE_KEYS[0].key);
+  const [profileDraft, setProfileDraft] = useState<Record<string, string>>(athlete?.profile || {});
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [monthlyFee, setMonthlyFee] = useState("");
   const [showName, setShowName] = useState(athlete?.nextShowName || "");
   const [showDate, setShowDate] = useState(
     athlete?.nextShowDate ? format(new Date(athlete.nextShowDate), "yyyy-MM-dd") : ""
@@ -71,8 +103,15 @@ export default function CoachAthleteProfile() {
       setShowName(athlete.nextShowName || "");
       setShowDate(athlete.nextShowDate ? format(new Date(athlete.nextShowDate), "yyyy-MM-dd") : "");
       setPhaseSelection(athlete.currentPhase || "off-season");
+      setProfileDraft((athlete.profile as Record<string, string>) || {});
     }
   }, [athlete]);
+
+  useEffect(() => {
+    if (billingForAthlete?.currentAmountCents != null) {
+      setMonthlyFee((billingForAthlete.currentAmountCents / 100).toFixed(0));
+    }
+  }, [billingForAthlete]);
 
   if (isLoading) {
     return (
@@ -109,6 +148,17 @@ export default function CoachAthleteProfile() {
       </div>
     );
   }
+
+  const handleDeleteAthlete = () => {
+    const confirmed = window.confirm(`Delete ${athlete.displayName || athlete.username}? This will remove their check-ins and history.`);
+    if (!confirmed) return;
+    deleteAthlete.mutate(athlete.id, {
+      onSuccess: () => {
+        toast({ title: "Athlete deleted", description: "All athlete data removed." });
+        setLocation("/dashboard");
+      },
+    });
+  };
 
   const uploadPlan = async (file: File) => {
     const signatureRes = await fetch(api.cloudinary.sign.path, {
@@ -161,12 +211,26 @@ export default function CoachAthleteProfile() {
     });
   };
 
-  const handleSaveShow = () => {
+  const handleSaveProfile = () => {
     updateAthlete.mutate({
       id: athlete.id,
+      profile: profileDraft,
       nextShowName: showName || null,
       nextShowDate: showDate ? new Date(showDate) : null,
     });
+  };
+
+  const handleUpdateMonthlyFee = async () => {
+    const feeCents = Math.round(Number(monthlyFee || 0) * 100);
+    if (!feeCents || feeCents < 100) {
+      toast({ variant: "destructive", title: "Invalid fee", description: "Monthly fee must be at least $1." });
+      return;
+    }
+    await apiFetch(api.billing.updatePrice.path.replace(":id", String(athlete.id)), {
+      method: api.billing.updatePrice.method,
+      body: JSON.stringify({ monthlyFeeCents: feeCents }),
+    });
+    toast({ title: "Price updated", description: "Applies on the next billing cycle." });
   };
 
   const handleSavePhase = () => {
@@ -186,14 +250,16 @@ export default function CoachAthleteProfile() {
   const pastProtocols = protocols?.filter((item) => item.endDate) || [];
   const latestCheckin = checkins?.[0];
   const previousCheckin = checkins?.[1];
-  const latestWeight = latestCheckin?.weight ? parseFloat(latestCheckin.weight) : null;
-  const previousWeight = previousCheckin?.weight ? parseFloat(previousCheckin.weight) : null;
+  const latestWeightRaw = latestCheckin ? Number(getCheckinMetricValue(latestCheckin, "weight")) : null;
+  const previousWeightRaw = previousCheckin ? Number(getCheckinMetricValue(previousCheckin, "weight")) : null;
+  const latestWeight = Number.isFinite(latestWeightRaw) ? latestWeightRaw : null;
+  const previousWeight = Number.isFinite(previousWeightRaw) ? previousWeightRaw : null;
   const weightChangePct = latestWeight && previousWeight ? ((latestWeight - previousWeight) / previousWeight) * 100 : null;
   const flags: string[] = [];
   const ratingPoses = ["front_relaxed", "back_double_biceps"];
 
   // Calculate specific trends based on sport
-  const poseTrends = template.sportType === 'bodybuilding' ? ratingPoses.map((poseKey) => {
+  const poseTrends = sportType === 'bodybuilding' ? ratingPoses.map((poseKey) => {
     const ratings = (checkins || [])
       .map((checkin) => checkin.poseRatings?.[poseKey])
       .filter((rating) => typeof rating === "number") as number[];
@@ -201,14 +267,18 @@ export default function CoachAthleteProfile() {
     return { poseKey, start: ratings[ratings.length - 1], end: ratings[0] };
   }).filter(Boolean) as Array<{ poseKey: string; start: number; end: number }> : [];
 
-  // For powerlifting/other, we could calculate Max trends here
-  const metricTrends = template.sportType !== 'bodybuilding' && checkins?.length && checkins.length > 1 ?
-    template.fields.filter(f => f.type === 'number').slice(0, 3).map(field => {
-      const latestInfo = checkins[0].data?.[field.id] || checkins[0].weight; // fallback for core fields
-      const prevInfo = checkins[checkins.length - 1].data?.[field.id] || checkins[checkins.length - 1].weight;
-      if (!latestInfo || !prevInfo) return null;
-      return { label: field.label, start: prevInfo, end: latestInfo };
-    }).filter(Boolean) : [];
+  const metricTrends = sportType !== 'bodybuilding' && checkins?.length && checkins.length > 1
+    ? checkinConfig.metrics
+        .filter((metric) => metric.type === "number" || metric.type === "rating")
+        .slice(0, 3)
+        .map((metric) => {
+          const latestInfo = getCheckinMetricValue(checkins[0], metric.key);
+          const prevInfo = getCheckinMetricValue(checkins[checkins.length - 1], metric.key);
+          if (latestInfo === undefined || prevInfo === undefined) return null;
+          return { label: metric.label, start: prevInfo, end: latestInfo };
+        })
+        .filter(Boolean)
+    : [];
 
   if (weightChangePct && Math.abs(weightChangePct) > 1) {
     flags.push(`Weight change ${weightChangePct.toFixed(1)}%`);
@@ -351,6 +421,84 @@ export default function CoachAthleteProfile() {
                 <span className="text-sm font-bold uppercase text-primary">{athlete.currentPhase || "Off-season"}</span>
               </div>
             </div>
+          </section>
+
+          <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+            <CollapsibleTrigger className="w-full flex items-center justify-between rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm font-semibold">
+              Advanced Tools (optional)
+              <span className="text-xs text-muted-foreground">{showAdvanced ? "Hide" : "Show"}</span>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-6 space-y-6">
+              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <Card className="lg:col-span-2">
+              <CardContent className="p-6 space-y-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-lg font-bold flex items-center gap-2">
+                      <Target className="w-5 h-5 text-emerald-500" />
+                      Athlete Profile
+                    </h2>
+                    <p className="text-sm text-muted-foreground">Minimal fields that directly guide weekly coaching.</p>
+                  </div>
+                  <Button type="button" onClick={handleSaveProfile}>
+                    Save profile
+                  </Button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {profileConfig.fields.map((field) => {
+                    const value = field.source === "user" && field.key === "nextShowDate"
+                      ? showDate
+                      : (profileDraft[field.key] || "");
+                    return (
+                      <div key={field.key} className="space-y-2">
+                        <label className="text-xs font-bold uppercase text-muted-foreground">{field.label}</label>
+                        <Input
+                          type={field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+                          value={value}
+                          placeholder={field.placeholder}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            if (field.source === "user" && field.key === "nextShowDate") {
+                              setShowDate(nextValue);
+                            } else {
+                              setProfileDraft((prev) => ({ ...prev, [field.key]: nextValue }));
+                            }
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+                {athlete.nextShowDate && (
+                  <div className="text-xs text-muted-foreground">
+                    Next {SPORT_EVENT_LABELS[sportType]}: {format(new Date(athlete.nextShowDate), "MMM d, yyyy")}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">Last Check-in</div>
+                <div className="text-sm font-bold">
+                  {latestCheckin ? format(new Date(latestCheckin.date), "MMM d, yyyy") : "No check-ins yet"}
+                </div>
+                <div className="space-y-2 pt-2">
+                  {checkinConfig.summaryMetrics.map((key) => {
+                    const metric = checkinConfig.metrics.find((item) => item.key === key);
+                    return (
+                      <div key={key} className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>{metric?.label || key}</span>
+                        <span className="text-foreground font-semibold">
+                          {latestCheckin ? formatMetricValue(getCheckinMetricValue(latestCheckin, key)) : "—"}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </CardContent>
+            </Card>
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -498,9 +646,9 @@ export default function CoachAthleteProfile() {
                 </div>
                 <div className="pt-2">
                   <div className="text-xs uppercase tracking-wide text-muted-foreground">
-                    {template.sportType === 'bodybuilding' ? 'Pose Ratings' : 'Key Metrics'}
+                    {sportType === 'bodybuilding' ? 'Pose Ratings' : 'Key Metrics'}
                   </div>
-                  {template.sportType === 'bodybuilding' ? (
+                  {sportType === 'bodybuilding' ? (
                     poseTrends.length ? (
                       <div className="mt-2 space-y-1 text-xs text-muted-foreground">
                         {poseTrends.map((trend) => (
@@ -533,6 +681,30 @@ export default function CoachAthleteProfile() {
                 </div>
               </CardContent>
             </Card>
+
+            <Card>
+              <CardContent className="p-6 space-y-4">
+                <h2 className="text-lg font-bold">Billing</h2>
+                <div className="space-y-2 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Status</span>
+                    <span className="font-semibold">{billingForAthlete?.paymentStatus || "—"}</span>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Locked</span>
+                    <span className="font-semibold">{billingForAthlete?.locked ? "Yes" : "No"}</span>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase text-muted-foreground">Monthly Fee (USD)</label>
+                  <Input type="number" min="1" value={monthlyFee} onChange={(event) => setMonthlyFee(event.target.value)} />
+                </div>
+                <Button type="button" onClick={handleUpdateMonthlyFee} disabled={!billingForAthlete?.paymentStatus || billingForAthlete.paymentStatus === "incomplete"}>
+                  Update Monthly Fee
+                </Button>
+                <p className="text-xs text-muted-foreground">Changes apply to the next billing cycle.</p>
+              </CardContent>
+            </Card>
           </section>
 
           <section className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -542,12 +714,12 @@ export default function CoachAthleteProfile() {
                   <div>
                     <h2 className="text-lg font-bold flex items-center gap-2">
                       <CalendarDays className="w-5 h-5 text-emerald-500" />
-                      {template.sportType === 'bodybuilding' ? 'Show Countdown' : 'Event Countdown'}
+                      {sportType === 'bodybuilding' ? 'Show Countdown' : 'Event Countdown'}
                     </h2>
-                    <p className="text-sm text-muted-foreground">Set the next {template.sportType === 'bodybuilding' ? 'show' : 'event'} date for this athlete.</p>
+                    <p className="text-sm text-muted-foreground">Set the next {sportType === 'bodybuilding' ? 'show' : 'event'} date for this athlete.</p>
                   </div>
-                  <Button type="button" onClick={handleSaveShow}>
-                    Save {template.sportType === 'bodybuilding' ? 'show' : 'event'}
+                  <Button type="button" onClick={handleSaveProfile}>
+                    Save {sportType === 'bodybuilding' ? 'show' : 'event'}
                   </Button>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -749,7 +921,9 @@ export default function CoachAthleteProfile() {
                 </div>
               </CardContent>
             </Card>
-          </section>
+              </section>
+            </CollapsibleContent>
+          </Collapsible>
 
           <section className="space-y-4">
             <div className="flex items-center justify-between">
@@ -761,7 +935,7 @@ export default function CoachAthleteProfile() {
                 {checkins?.length ? `Last check-in ${format(new Date(checkins[0].date), "MMM d, yyyy")}` : "No check-ins yet"}
               </span>
             </div>
-            {checkins && checkins.length > 0 && template.sportType === 'bodybuilding' && (
+            {checkins && checkins.length > 0 && sportType === 'bodybuilding' && (
               <Card className="border-border bg-card">
                 <CardContent className="p-6 space-y-4">
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
@@ -808,7 +982,7 @@ export default function CoachAthleteProfile() {
             )}
             <div className="grid grid-cols-1 gap-4">
               {checkins?.map((checkin) => (
-                <CheckinReviewCard key={checkin.id} checkin={checkin} template={template} />
+                <CheckinReviewCard key={checkin.id} checkin={checkin} sportType={sportType} />
               ))}
               {!checkins?.length && (
                 <Card>
@@ -819,19 +993,30 @@ export default function CoachAthleteProfile() {
               )}
             </div>
           </section>
+
+          <section className="border border-destructive/30 rounded-xl p-6 bg-destructive/5 space-y-4">
+            <div>
+              <h3 className="text-sm font-bold uppercase tracking-widest text-destructive">Danger Zone</h3>
+              <p className="text-xs text-muted-foreground">Deleting an athlete removes their account and all related history.</p>
+            </div>
+            <Button variant="destructive" onClick={handleDeleteAthlete} disabled={deleteAthlete.isPending}>
+              {deleteAthlete.isPending ? "Deleting..." : "Delete Athlete"}
+            </Button>
+          </section>
         </main>
       </div>
     </div>
   );
 }
 
-function CheckinReviewCard({ checkin, template }: { checkin: any, template: any }) {
+function CheckinReviewCard({ checkin, sportType }: { checkin: any; sportType: SportType }) {
   const { updateCheckin } = useCheckins();
   const [feedback, setFeedback] = useState(checkin.coachFeedback || "");
   const [isEditing, setIsEditing] = useState(false);
   const [poseRatings, setPoseRatings] = useState<Record<string, number>>(checkin.poseRatings || {});
   const [newChange, setNewChange] = useState("");
   const [coachChanges, setCoachChanges] = useState<string[]>(checkin.coachChanges || []);
+  const config = SPORT_CHECKIN_CONFIGS[sportType];
 
   const handleSave = () => {
     updateCheckin.mutate({ id: checkin.id, coachFeedback: feedback, poseRatings, status: "reviewed" }, {
@@ -853,22 +1038,18 @@ function CheckinReviewCard({ checkin, template }: { checkin: any, template: any 
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
           <div>
             <span className="text-sm font-bold text-primary block">{format(new Date(checkin.date), "MMM d, yyyy")}</span>
-            <span className="text-xs text-muted-foreground block mt-1">Weight: {checkin.weight} lbs</span>
+            <span className="text-xs text-muted-foreground block mt-1">Weight: {formatMetricValue(getCheckinMetricValue(checkin, "weight"))}</span>
           </div>
-          <div className="flex gap-2">
-            <span className={`px-2 py-1 rounded text-xs font-bold ${checkin.adherence > 8 ? "bg-emerald-500/20 text-emerald-500" : "bg-red-500/20 text-red-500"}`}>
-              Adherence: {checkin.adherence}/10
-            </span>
-            <span className="px-2 py-1 rounded text-xs font-bold bg-secondary/40 text-muted-foreground">
-              Stress: {checkin.stress}/10
-            </span>
-            <span className="px-2 py-1 rounded text-xs font-bold bg-secondary/40 text-muted-foreground">
-              Sleep: {checkin.sleep} hrs
-            </span>
+          <div className="flex gap-2 flex-wrap">
+            {config.metrics.slice(0, 3).map((metric) => (
+              <span key={metric.key} className="px-2 py-1 rounded text-xs font-bold bg-secondary/40 text-muted-foreground">
+                {metric.label}: {formatMetricValue(getCheckinMetricValue(checkin, metric.key))}
+              </span>
+            ))}
           </div>
         </div>
 
-        {template.sportType === 'bodybuilding' && checkin.posePhotos && (
+        {sportType === 'bodybuilding' && checkin.posePhotos && (
           <div className="space-y-2">
             <div className="text-xs uppercase tracking-wide text-muted-foreground">Pose Photos</div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
@@ -887,15 +1068,15 @@ function CheckinReviewCard({ checkin, template }: { checkin: any, template: any 
           </div>
         )}
 
-        {template.sportType !== 'bodybuilding' && checkin.data && (
+        {sportType !== 'bodybuilding' && checkin.data && (
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground uppercase font-bold">Key Metrics</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {template.fields.filter((f: any) => !f.isCore).map((field: any) => (
-                <div key={field.id} className="rounded-md border border-border p-3 bg-secondary/10">
-                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{field.label}</div>
+              {config.metrics.map((metric) => (
+                <div key={metric.key} className="rounded-md border border-border p-3 bg-secondary/10">
+                  <div className="text-[10px] text-muted-foreground uppercase tracking-wider">{metric.label}</div>
                   <div className="text-lg font-bold">
-                    {checkin.data[field.id] ? checkin.data[field.id] : '—'}
+                    {formatMetricValue(getCheckinMetricValue(checkin, metric.key))}
                   </div>
                 </div>
               ))}
@@ -942,7 +1123,7 @@ function CheckinReviewCard({ checkin, template }: { checkin: any, template: any 
           )}
         </div>
 
-        {template.sportType === 'bodybuilding' && (
+        {sportType === 'bodybuilding' && (
           <div className="space-y-2">
             <label className="text-xs text-muted-foreground uppercase font-bold">Pose Ratings</label>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2">

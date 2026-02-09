@@ -7,9 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { POSE_KEYS } from "@/lib/poses";
+import { ChevronLeft, Image } from "lucide-react";
 import { format } from "date-fns";
 import { Redirect, useLocation, useRoute } from "wouter";
 import { useEffect, useState } from "react";
+import { SPORT_CHECKIN_CONFIGS, getSportTypeForUser } from "@/lib/sport-configs";
+import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
 
 export default function CoachCheckinDetail() {
   const { user } = useAuth();
@@ -35,6 +38,8 @@ export default function CoachCheckinDetail() {
 
   const checkin = checkins?.find((item) => item.id === checkinId);
   const athlete = checkin ? athletes?.find((item) => item.id === checkin.athleteId) : null;
+  const sportType = getSportTypeForUser(athlete || null);
+  const config = SPORT_CHECKIN_CONFIGS[sportType];
 
   // Find previous check-in for comparison
   const athleteCheckins = checkins?.filter(c => c.athleteId === checkin?.athleteId)
@@ -112,7 +117,7 @@ export default function CoachCheckinDetail() {
                 {athlete?.displayName || athlete?.username}
               </h1>
               <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest mt-0.5">
-                {format(new Date(checkin.date), "MMM d, yyyy")} • {checkin.weight} LBS
+                {format(new Date(checkin.date), "MMM d, yyyy")} • {formatMetricValue(getCheckinMetricValue(checkin, "weight"))}
               </p>
             </div>
           </div>
@@ -134,84 +139,74 @@ export default function CoachCheckinDetail() {
       <main className="max-w-[1600px] mx-auto p-4 lg:p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 h-[calc(100vh-4rem)] overflow-hidden">
         {/* Left Column: Visuals */}
         <div className="lg:col-span-8 flex flex-col gap-6 overflow-y-auto pr-2 custom-scrollbar">
-          {/* Photo Comparison Section */}
-          <Card className="border-border/50 shadow-sm flex flex-col h-full bg-card/30">
-            <CardContent className="p-0 flex flex-col h-full">
-              <div className="p-4 border-b border-border/50 flex items-center justify-between bg-secondary/5">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
-                  <Image className="w-4 h-4" />
-                  Side-by-Side Comparison
-                </h3>
-                <div className="flex bg-secondary/20 p-1 rounded-lg border border-border/50 max-w-full overflow-x-auto gap-1">
-                  {POSE_KEYS.map(p => (
-                    <button
-                      key={p.key}
-                      onClick={() => setActivePose(p.key)}
-                      className={`px-3 py-1 text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap rounded-md transition-all ${activePose === p.key ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
+          {config.requiresPhotos && (
+            <Card className="border-border/50 shadow-sm flex flex-col h-full bg-card/30">
+              <CardContent className="p-0 flex flex-col h-full">
+                <div className="p-4 border-b border-border/50 flex items-center justify-between bg-secondary/5">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-muted-foreground flex items-center gap-2">
+                    <Image className="w-4 h-4" />
+                    Side-by-Side Comparison
+                  </h3>
+                  <div className="flex bg-secondary/20 p-1 rounded-lg border border-border/50 max-w-full overflow-x-auto gap-1">
+                    {POSE_KEYS.map(p => (
+                      <button
+                        key={p.key}
+                        onClick={() => setActivePose(p.key)}
+                        className={`px-3 py-1 text-[9px] font-bold uppercase tracking-tighter whitespace-nowrap rounded-md transition-all ${activePose === p.key ? 'bg-background text-primary shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
 
-              <div className="flex-1 grid grid-cols-2 gap-px bg-border/50 p-4">
-                <div className="flex flex-col gap-3">
-                  <div className="text-[10px] font-bold uppercase text-center text-muted-foreground tracking-widest">
-                    {previousCheckin ? format(new Date(previousCheckin.date), 'MMM d') : 'No Prior Data'}
+                <div className="flex-1 grid grid-cols-2 gap-px bg-border/50 p-4">
+                  <div className="flex flex-col gap-3">
+                    <div className="text-[10px] font-bold uppercase text-center text-muted-foreground tracking-widest">
+                      {previousCheckin ? format(new Date(previousCheckin.date), 'MMM d') : 'No Prior Data'}
+                    </div>
+                    <div className="flex-1 rounded-xl overflow-hidden bg-secondary/10 relative group">
+                      {previousCheckin?.posePhotos?.[activePose] ? (
+                        <img
+                          src={previousCheckin.posePhotos[activePose]}
+                          className="w-full h-full object-contain bg-black/20"
+                          alt="Previous"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 font-display italic">Missing Photo</div>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex-1 rounded-xl overflow-hidden bg-secondary/10 relative group">
-                    {previousCheckin?.posePhotos?.[activePose] ? (
-                      <img
-                        src={previousCheckin.posePhotos[activePose]}
-                        className="w-full h-full object-contain bg-black/20"
-                        alt="Previous"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 font-display italic">Missing Photo</div>
-                    )}
+                  <div className="flex flex-col gap-3">
+                    <div className="text-[10px] font-bold uppercase text-center text-primary tracking-widest">
+                      THIS WEEK • {formatMetricValue(getCheckinMetricValue(checkin, "weight"))}
+                    </div>
+                    <div className="flex-1 rounded-xl overflow-hidden bg-secondary/10 relative ring-2 ring-primary/20">
+                      {checkin.posePhotos?.[activePose] ? (
+                        <img
+                          src={checkin.posePhotos[activePose]}
+                          className="w-full h-full object-contain bg-black/20"
+                          alt="Current"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 font-display italic">Missing Photo</div>
+                      )}
+                    </div>
                   </div>
                 </div>
-                <div className="flex flex-col gap-3">
-                  <div className="text-[10px] font-bold uppercase text-center text-primary tracking-widest">
-                    THIS WEEK • {checkin.weight} LBS
-                  </div>
-                  <div className="flex-1 rounded-xl overflow-hidden bg-secondary/10 relative ring-2 ring-primary/20">
-                    {checkin.posePhotos?.[activePose] ? (
-                      <img
-                        src={checkin.posePhotos[activePose]}
-                        className="w-full h-full object-contain bg-black/20"
-                        alt="Current"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground/30 font-display italic">Missing Photo</div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Metrics Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            <MetricBox label="Sleep" value={checkin.sleep} prev={previousCheckin?.sleep} color="primary" />
-            <MetricBox label="Stress" value={checkin.stress} prev={previousCheckin?.stress} color="orange-500" inverse />
-            <MetricBox label="Energy" value={(checkin as any).energy} prev={(previousCheckin as any)?.energy} color="yellow-500" />
-            <MetricBox label="Hunger" value={(checkin as any).hunger} prev={(previousCheckin as any)?.hunger} color="red-500" inverse />
-            <MetricBox label="Mood" value={(checkin as any).mood} prev={(previousCheckin as any)?.mood} color="pink-500" />
-            <MetricBox label="Digestion" value={(checkin as any).digestion} prev={(previousCheckin as any)?.digestion} color="emerald-500" />
-            <MetricBox label="Adherence" value={checkin.adherence} prev={previousCheckin?.adherence} color="emerald-600" />
-            <Card className="bg-secondary/10 border-border/50 p-4">
-              <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Morning Weight</p>
-              <div className="flex items-baseline gap-2">
-                <p className="text-xl font-display font-bold">{checkin.weight}</p>
-                {previousCheckin && (
-                  <p className={`text-[10px] font-bold ${parseFloat(checkin.weight) <= parseFloat(previousCheckin.weight) ? 'text-emerald-500' : 'text-orange-500'}`}>
-                    {parseFloat(checkin.weight) <= parseFloat(previousCheckin.weight) ? '↓' : '↑'} {Math.abs(parseFloat(checkin.weight) - parseFloat(previousCheckin.weight)).toFixed(1)}
-                  </p>
-                )}
-              </div>
+              </CardContent>
             </Card>
+          )}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+            {config.metrics.map((metric) => (
+              <Card key={metric.key} className="bg-secondary/10 border-border/50 p-4">
+                <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{metric.label}</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-xl font-display font-bold">{formatMetricValue(getCheckinMetricValue(checkin, metric.key))}</p>
+                </div>
+              </Card>
+            ))}
           </div>
         </div>
 
@@ -296,28 +291,3 @@ export default function CoachCheckinDetail() {
     </div>
   );
 }
-
-function MetricBox({ label, value, prev, color, inverse = false }: { label: string, value: any, prev?: any, color: string, inverse?: boolean }) {
-  const diff = prev !== undefined ? value - prev : 0;
-  const isBetter = inverse ? diff < 0 : diff > 0;
-  const isWorse = inverse ? diff > 0 : diff < 0;
-
-  return (
-    <Card className="bg-secondary/10 border-border/50 p-4">
-      <p className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-1">{label}</p>
-      <div className="flex items-baseline gap-2">
-        <p className="text-xl font-display font-bold">{value || '0'}<span className="text-[10px] text-muted-foreground">/10</span></p>
-        {prev !== undefined && diff !== 0 && (
-          <span className={`text-[10px] font-bold ${isBetter ? 'text-emerald-500' : isWorse ? 'text-orange-500' : 'text-muted-foreground'}`}>
-            {diff > 0 ? '+' : ''}{diff}
-          </span>
-        )}
-      </div>
-      <div className="mt-2 h-1 w-full bg-secondary rounded-full overflow-hidden">
-        <div className={`h-full bg-${color} rounded-full`} style={{ width: `${(value || 0) * 10}%` }} />
-      </div>
-    </Card>
-  );
-}
-
-import { ChevronLeft, Image, MessageSquare } from "lucide-react";

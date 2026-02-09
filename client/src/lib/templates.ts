@@ -1,8 +1,7 @@
 
 import { User } from "@shared/schema";
+import type { SportType } from "@shared/types";
 import { Activity, BarChart3, CalendarDays, ClipboardCheck, Dumbbell, Timer, Flame, Trophy } from "lucide-react";
-
-export type SportType = 'bodybuilding' | 'powerlifting' | 'crossfit' | 'endurance' | 'hybrid';
 
 export interface FieldConfig {
     id: string;
@@ -43,22 +42,15 @@ export interface DashboardConfig {
 
 // --- TEMPLATE DEFINITIONS ---
 
-// --- TEMPLATE DEFINITIONS ---
-
-// Minimal core fields for EVERY athlete
-const CORE_FIELDS: FieldConfig[] = [
-    { id: 'weight', label: 'Bodyweight', type: 'number', required: true, isCore: true, section: 'Vitals', placeholder: 'lbs' },
-];
-
 export const CHECKIN_TEMPLATES: Record<SportType, CheckInTemplate> = {
     bodybuilding: {
         id: 'bb-minimal',
         sportType: 'bodybuilding',
         name: 'Bodybuilding Check-in',
         fields: [
-            ...CORE_FIELDS,
+            { id: 'weight', label: 'Bodyweight', type: 'number', required: true, isCore: true, section: 'Vitals', placeholder: 'lbs' },
             { id: 'posePhotos', label: 'Posing Photos', type: 'photos', required: true, isCore: true, section: 'Physique' },
-            { id: 'energy', label: 'How do you feel overall this week? (1-5)', type: 'rating', required: true, isCore: true, section: 'Feedback', min: 1, max: 5 },
+            { id: 'feel_score', label: 'Condition this week (1–5)', type: 'rating', required: true, isCore: false, section: 'Feedback', min: 1, max: 5 },
             { id: 'notes', label: 'Notes', type: 'textarea', required: false, isCore: true, section: 'Feedback' },
         ]
     },
@@ -67,11 +59,12 @@ export const CHECKIN_TEMPLATES: Record<SportType, CheckInTemplate> = {
         sportType: 'powerlifting',
         name: 'Powerlifting Check-in',
         fields: [
-            ...CORE_FIELDS,
-            { id: 'squat_top', label: 'Squat Top Set', type: 'text', required: true, isCore: false, section: 'Performance', placeholder: 'e.g. 315x5' },
-            { id: 'bench_top', label: 'Bench Top Set', type: 'text', required: true, isCore: false, section: 'Performance', placeholder: 'e.g. 225x5' },
-            { id: 'deadlift_top', label: 'Deadlift Top Set', type: 'text', required: true, isCore: false, section: 'Performance', placeholder: 'e.g. 405x5' },
-            { id: 'pain_notes', label: 'Any pain/injury issues?', type: 'textarea', required: false, isCore: false, section: 'Recovery', placeholder: 'Leave blank if none' },
+            { id: 'weight', label: 'Bodyweight', type: 'number', required: true, isCore: true, section: 'Vitals', placeholder: 'lbs' },
+            { id: 'squat_top_set', label: 'Squat Top Set (kg x reps)', type: 'text', required: true, isCore: false, section: 'Performance', placeholder: 'e.g. 200 x 5' },
+            { id: 'bench_top_set', label: 'Bench Top Set (kg x reps)', type: 'text', required: true, isCore: false, section: 'Performance', placeholder: 'e.g. 140 x 5' },
+            { id: 'deadlift_top_set', label: 'Deadlift Top Set (kg x reps)', type: 'text', required: true, isCore: false, section: 'Performance', placeholder: 'e.g. 230 x 3' },
+            { id: 'pain_flag', label: 'Any pain/injury issues?', type: 'boolean', required: false, isCore: false, section: 'Recovery' },
+            { id: 'pain_note', label: 'Pain/Injury notes', type: 'textarea', required: false, isCore: false, section: 'Recovery' },
         ]
     },
     crossfit: {
@@ -79,9 +72,9 @@ export const CHECKIN_TEMPLATES: Record<SportType, CheckInTemplate> = {
         sportType: 'crossfit',
         name: 'CrossFit Check-in',
         fields: [
-            { id: 'sessions_count', label: 'How many sessions did you complete?', type: 'number', required: true, isCore: false, section: 'Volume' },
-            { id: 'highlight_wod', label: 'Highlight one key workout or lift', type: 'textarea', required: true, isCore: false, section: 'Performance' },
-            { id: 'fatigue', label: 'How beat up do you feel? (1-5)', type: 'rating', required: true, isCore: false, section: 'Recovery', min: 1, max: 5 },
+            { id: 'sessions_completed', label: 'Sessions completed', type: 'number', required: true, isCore: false, section: 'Volume' },
+            { id: 'highlight_performance', label: 'Highlighted performance', type: 'textarea', required: true, isCore: false, section: 'Performance' },
+            { id: 'beat_up', label: 'How beat up do you feel? (1-5)', type: 'rating', required: true, isCore: false, section: 'Recovery', min: 1, max: 5 },
             { id: 'notes', label: 'Notes', type: 'textarea', required: false, isCore: true, section: 'Feedback' },
         ]
     },
@@ -90,20 +83,11 @@ export const CHECKIN_TEMPLATES: Record<SportType, CheckInTemplate> = {
         sportType: 'endurance',
         name: 'Endurance Check-in',
         fields: [
-            { id: 'swim_vol', label: 'Swim Volume (Time or Dist)', type: 'text', required: true, isCore: false, section: 'Volume' },
-            { id: 'bike_vol', label: 'Bike Volume (Time or Dist)', type: 'text', required: true, isCore: false, section: 'Volume' },
-            { id: 'run_vol', label: 'Run Volume (Time or Dist)', type: 'text', required: true, isCore: false, section: 'Volume' },
+            { id: 'swim_volume', label: 'Swim volume (minutes)', type: 'number', required: true, isCore: false, section: 'Volume' },
+            { id: 'bike_volume', label: 'Bike volume (minutes)', type: 'number', required: true, isCore: false, section: 'Volume' },
+            { id: 'run_volume', label: 'Run volume (minutes)', type: 'number', required: true, isCore: false, section: 'Volume' },
             { id: 'fatigue', label: 'Overall fatigue this week? (1-5)', type: 'rating', required: true, isCore: false, section: 'Recovery', min: 1, max: 5 },
-            { id: 'issues', label: 'Any issues (injuries, missed key sessions)?', type: 'textarea', required: false, isCore: false, section: 'Feedback' },
-        ]
-    },
-    hybrid: {
-        id: 'hyb-minimal',
-        sportType: 'hybrid',
-        name: 'Hybrid Check-in',
-        fields: [
-            ...CORE_FIELDS,
-            { id: 'notes', label: 'Weekly Summary', type: 'textarea', required: true, isCore: true, section: 'Feedback' },
+            { id: 'notes', label: 'Issues / missed sessions', type: 'textarea', required: false, isCore: false, section: 'Feedback' },
         ]
     }
 };
@@ -150,16 +134,6 @@ export const DASHBOARD_CONFIGS: Record<SportType, DashboardConfig> = {
             { id: 'checkins', title: 'Check-ins Due', icon: ClipboardCheck, metricKey: 'pending_checkins' },
             { id: 'races', title: 'Upcoming Races', icon: Flame, metricKey: 'upcoming_events', color: 'text-orange-500' },
         ]
-    },
-    hybrid: {
-        sportType: 'hybrid',
-        welcomeMessage: 'Athlete Overview',
-        primaryMetric: 'Readiness',
-        tiles: [
-            { id: 'checkins', title: 'Pending Check-ins', icon: ClipboardCheck, metricKey: 'pending_checkins' },
-            { id: 'recovery', title: 'Recovery Score', icon: Activity, metricKey: 'recovery_score', color: 'text-green-500' },
-            { id: 'events', title: 'Events', icon: CalendarDays, metricKey: 'upcoming_events', color: 'text-blue-500' },
-        ]
     }
 };
 
@@ -167,33 +141,35 @@ export const getTemplateForUser = (user: User | null): CheckInTemplate => {
     // For coaches: use coachIndustry, for athletes: use coach's coachIndustry (inherited)
     // If undefined, block with setup required
     let industry: SportType | undefined;
-    
+
+    const u = user as any;
     if (user?.role === "coach") {
         industry = user.coachIndustry as SportType;
-    } else if (user?.role === "athlete" && user?.coachId) {
-        // NOTE: Athlete doesn't have direct coachIndustry; coach's should be loaded separately
-        // For now, fallback to user.sport (populated from coach's coachIndustry during athlete creation)
-        industry = user.sport as SportType;
+    } else if (user?.role === "athlete") {
+        industry = (u?.effectiveIndustry || u?.sport) as SportType;
     }
-    
+
+
     if (!industry) {
-        // Return bodybuilding as fallback, but caller should handle setup-required screen
-        return CHECKIN_TEMPLATES.bodybuilding;
+        // Caller must handle this case
+        throw new Error("No industry found for user");
     }
-    return CHECKIN_TEMPLATES[industry] || CHECKIN_TEMPLATES.bodybuilding;
+    return CHECKIN_TEMPLATES[industry];
 };
 
 export const getDashboardForUser = (user: User | null): DashboardConfig => {
     let industry: SportType | undefined;
-    
+
+    const u = user as any;
     if (user?.role === "coach") {
         industry = user.coachIndustry as SportType;
-    } else if (user?.role === "athlete" && user?.coachId) {
-        industry = user.sport as SportType;
+    } else if (user?.role === "athlete") {
+        industry = (u?.effectiveIndustry || u?.sport) as SportType;
     }
-    
+
+
     if (!industry) {
-        return DASHBOARD_CONFIGS.bodybuilding;
+        throw new Error("No industry found for user");
     }
-    return DASHBOARD_CONFIGS[industry] || DASHBOARD_CONFIGS.bodybuilding;
+    return DASHBOARD_CONFIGS[industry];
 };

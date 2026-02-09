@@ -90,6 +90,13 @@ export default function LayoutCoach({ children, title = "Coach Dashboard" }: { c
                                 <div className="text-xl font-display font-bold tracking-tight text-primary">{title}</div>
                             </div>
                             <div className="flex items-center gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => logout()}
+                                    className="text-xs font-bold uppercase tracking-widest text-muted-foreground hover:text-foreground"
+                                >
+                                    Log out
+                                </button>
                                 <Avatar className="h-8 w-8">
                                     {user?.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="Coach avatar" /> : null}
                                     <AvatarFallback>{avatarFallback}</AvatarFallback>

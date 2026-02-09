@@ -74,5 +74,12 @@ export async function apiFetch<T = any>(path: string, options: FetchOptions = {}
         return null as T;
     }
 
-    return response.json();
+    const contentType = response.headers.get("content-type") || "";
+    if (contentType.includes("application/json")) {
+        return response.json();
+    }
+
+    // Fallback for non-JSON success responses
+    const text = await response.text();
+    return text as T;
 }

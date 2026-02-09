@@ -7,10 +7,17 @@ import { Button } from "@/components/ui/button";
 import { formatDistanceToNow, format } from "date-fns";
 import { Link } from "wouter";
 import { useNutritionPlans, useWeeklyTrainingPlans, useTrainingCompletions } from "@/hooks/use-plans";
-import { Activity, BarChart3, CalendarDays, ClipboardCheck, MessageSquare, Utensils, ChevronRight, Info } from "lucide-react";
+import { Activity, BarChart3, ClipboardCheck, MessageSquare, Utensils, ChevronRight } from "lucide-react";
 import { TooltipHelper } from "@/components/ui/TooltipHelper";
 import { PREFERENCES_KEYS } from "@/lib/preferences";
 import { EmptyState } from "@/components/ui/EmptyState";
+import { useState } from "react";
+import { api } from "@shared/routes";
+import { apiFetch } from "@/lib/apiFetch";
+import { useQuery } from "@tanstack/react-query";
+import { SPORT_CHECKIN_CONFIGS, SPORT_EVENT_LABELS, getSportTypeForUser } from "@/lib/sport-configs";
+import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 export default function AthleteDashboard() {
   const { user } = useAuth();
@@ -29,6 +36,45 @@ export default function AthleteDashboard() {
   const todaysCompletion = completions?.find((item) => item.dayKey === todayLabel);
   const workoutPlanLink = user?.workoutPlan || (currentWorkoutPlan ? "/athlete/workout-plan" : undefined);
   const mealPlanLink = user?.mealPlan || (currentNutritionPlan ? "/athlete/meal-plan" : undefined);
+  // Handle missing industry setup
+  const sportType = getSportTypeForUser(user || null);
+  const industryMissing = user?.role === "athlete" && !(user as any).effectiveIndustry;
+
+  if (industryMissing) {
+    return (
+      <LayoutAthlete>
+        <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 animate-in fade-in duration-700">
+          <div className="w-20 h-20 rounded-3xl bg-orange-500/10 flex items-center justify-center border border-orange-500/20 mb-6">
+            <Activity className="w-10 h-10 text-orange-500" />
+          </div>
+          <h2 className="text-3xl font-display font-bold mb-4 uppercase tracking-tight">Coach Setup Required</h2>
+          <p className="text-muted-foreground max-w-md mx-auto text-lg leading-relaxed">
+            Your coach needs to complete their industry setup before you can access your dashboard.
+            Please check back shortly or message your coach.
+          </p>
+        </div>
+      </LayoutAthlete>
+    );
+  }
+
+  const checkinConfig = SPORT_CHECKIN_CONFIGS[sportType];
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
+
+  const { data: billingSummary } = useQuery({
+    queryKey: [api.billing.athleteSummary.path],
+    queryFn: async () => {
+      return await apiFetch<{ billingProfile: any; payments: any[] }>(api.billing.athleteSummary.path);
+    },
+    enabled: !!user,
+  });
+
+  const handlePortal = async () => {
+    const res = await apiFetch<{ url: string }>(api.billing.portal.path, { method: api.billing.portal.method });
+    window.location.href = res.url;
+  };
+
+  const portalDisabled = !billingSummary?.billingProfile?.stripeCustomerId;
 
   // Logic for "Start Here" Banner
   const hasEverCheckedIn = checkins && checkins.length > 0;
@@ -92,179 +138,238 @@ export default function AthleteDashboard() {
             </div>
           </div>
 
-          {user?.nextShowName && user.nextShowDate && (
+          {user?.nextShowDate && (
             <div className="mt-8 pt-6 border-t border-primary/10 flex items-center gap-4">
               <div className="flex flex-col">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Contest Countdown</span>
-                <span className="text-lg font-bold text-primary tracking-tight">
-                  {user.nextShowName} • {formatDistanceToNow(new Date(user.nextShowDate), { addSuffix: false })} to go
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  Next {SPORT_EVENT_LABELS[sportType]}
                 </span>
-              </div>
-              <div className="flex-1 h-2 bg-secondary rounded-full overflow-hidden hidden sm:block">
-                <div className="h-full bg-primary w-2/3 shadow-[0_0_10px_rgba(var(--primary),0.5)]" />
+                <span className="text-lg font-bold text-primary tracking-tight">
+                  {format(new Date(user.nextShowDate), "MMM d, yyyy")} • {formatDistanceToNow(new Date(user.nextShowDate), { addSuffix: false })} to go
+                </span>
               </div>
             </div>
           )}
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Nutrition Card */}
-          <div className="card-premium flex flex-col h-full group">
-            <div className="space-y-6 flex-1">
-              <div className="flex items-center justify-between">
-                <h3 className="font-display font-bold text-2xl flex items-center gap-3">
-                  <Utensils className="w-6 h-6 text-primary" />
-                  Nutrition
-                </h3>
-                {currentNutritionPlan && (
-                  <span className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest border border-primary/20">Target Set</span>
-                )}
-              </div>
-
-              {currentNutritionPlan ? (
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
-                    <p className="label-caps mb-2">Protein</p>
-                    <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.proteinG}g</p>
-                  </div>
-                  <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
-                    <p className="label-caps mb-2">Carbs</p>
-                    <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.carbsG}g</p>
-                  </div>
-                  <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
-                    <p className="label-caps mb-2">Fats</p>
-                    <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.fatsG}g</p>
-                  </div>
-                  <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
-                    <p className="label-caps mb-2 text-primary">Calories</p>
-                    <p className="text-2xl font-display font-bold text-primary leading-none">
-                      {currentNutritionPlan.calories || (currentNutritionPlan.proteinG! * 4 + currentNutritionPlan.carbsG! * 4 + currentNutritionPlan.fatsG! * 9)}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="py-8 bg-white/[0.02] rounded-2xl border border-white/[0.03] flex flex-col items-center justify-center text-center px-4">
-                  <Utensils className="w-10 h-10 text-white/10 mb-4" />
-                  <p className="text-sm font-bold text-white/40 uppercase tracking-widest">No Plan Assigned</p>
-                </div>
-              )}
+        <div className="card-premium p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Latest Check-in</p>
+              <p className="text-lg font-bold">
+                {last ? format(new Date(last.date), "MMM d, yyyy") : "No check-ins yet"}
+              </p>
             </div>
-            {currentNutritionPlan && (
-              <div className="mt-8 pt-6 border-t border-white/[0.05]">
-                <Link href="/athlete/meal-plan">
-                  <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
-                    Full Protocol
-                    <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </Button>
-                </Link>
-              </div>
-            )}
-          </div>
-
-          {/* Training Card */}
-          <div className="card-premium flex flex-col h-full group">
-            <div className="space-y-6 flex-1">
-              <h3 className="font-display font-bold text-2xl flex items-center gap-3">
-                <Activity className="w-6 h-6 text-primary" />
-                Training
-              </h3>
-
-              <div className="bg-white/[0.02] rounded-2xl p-6 border border-white/[0.03] space-y-4">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="label-caps mb-2 opacity-60">Today's Focus</p>
-                    <p className="text-2xl font-display font-bold uppercase tracking-tight leading-none">
-                      {todaysPlan ? todaysPlan.focus || "Weights Session" : "Active Recovery"}
-                    </p>
-                  </div>
-                  {todaysPlan && <span className="label-caps opacity-40">{format(new Date(), 'EEE')}</span>}
-                </div>
-              </div>
-
-              {todaysPlan && (
-                <div className="mt-6">
-                  <label className={`flex items-center gap-4 rounded-2xl border p-5 transition-all cursor-pointer group/item ${todaysCompletion?.completed ? 'bg-primary/10 border-primary/30' : 'bg-white/[0.02] border-white/[0.05] hover:border-primary/50'}`}>
-                    <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${todaysCompletion?.completed ? 'bg-primary border-primary' : 'border-white/20 group-hover/item:border-primary'}`}>
-                      {todaysCompletion?.completed && <ClipboardCheck className="w-5 h-5 text-ml-bg" />}
-                    </div>
-                    <input
-                      type="checkbox"
-                      className="hidden"
-                      checked={todaysCompletion?.completed || false}
-                      onChange={(event) => {
-                        if (!user) return;
-                        if (!todaysCompletion) {
-                          createCompletion.mutate({
-                            athleteId: user.id,
-                            dateKey: todayKey,
-                            dayKey: todayLabel,
-                            completed: event.target.checked,
-                          });
-                          return;
-                        }
-                        updateCompletion.mutate({
-                          id: todaysCompletion.id,
-                          completed: event.target.checked,
-                        });
-                      }}
-                    />
-                    <span className="text-sm font-bold uppercase tracking-widest">
-                      {todaysCompletion?.completed ? 'Completed' : 'Submit Done'}
-                    </span>
-                  </label>
-                </div>
-              )}
-            </div>
-            <div className="mt-8 pt-6 border-t border-white/[0.05]">
-              <Link href="/athlete/workout-plan">
-                <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
-                  Full Library
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-            </div>
-          </div>
-
-          {/* Progress Card */}
-          <div className="card-premium flex flex-col h-full group">
-            <div className="space-y-6 flex-1">
-              <h3 className="font-display font-bold text-2xl flex items-center gap-3">
-                <BarChart3 className="w-6 h-6 text-primary" />
-                Progress
-              </h3>
-
-              {last ? (
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
-                    <span className="label-caps opacity-60">Morning Weight</span>
-                    <span className="text-2xl font-display font-bold text-primary">{last.weight}<span className="text-xs ml-1 opacity-40 font-sans">LBS</span></span>
-                  </div>
-                  <div className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
-                    <span className="label-caps opacity-60">Feeling</span>
-                    <div className="flex gap-1.5">
-                      {[1, 2, 3, 4, 5].map(i => (
-                        <div key={i} className={`w-4 h-2 rounded-full ${i <= (last.energy || 5) ? 'bg-primary' : 'bg-white/5'}`} />
-                      ))}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full sm:w-auto">
+              {checkinConfig.summaryMetrics.map((key) => {
+                const metric = checkinConfig.metrics.find((item) => item.key === key);
+                return (
+                  <div key={key} className="rounded-xl border border-white/10 px-3 py-2 text-xs">
+                    <div className="uppercase tracking-widest text-muted-foreground">{metric?.label || key}</div>
+                    <div className="font-bold text-sm">
+                      {last ? formatMetricValue(getCheckinMetricValue(last, key)) : "—"}
                     </div>
                   </div>
-                </div>
-              ) : (
-                <div className="py-8 bg-white/[0.02] rounded-2xl border border-white/[0.03] flex flex-col items-center justify-center text-center px-4">
-                  <Activity className="w-10 h-10 text-white/10 mb-4" />
-                  <p className="text-sm font-bold text-white/40 uppercase tracking-widest">No Baseline Set</p>
-                </div>
-              )}
-            </div>
-            <div className="mt-8 pt-6 border-t border-white/[0.05]">
-              <Link href="/athlete/history">
-                <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
-                  Full History
-                  <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
+                );
+              })}
             </div>
           </div>
         </div>
+
+        <div className="card-premium p-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-widest text-muted-foreground">Billing</p>
+              <p className="text-lg font-bold">
+                ${((billingSummary?.billingProfile?.currentAmountCents || 0) / 100).toFixed(0)} / month
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Status: {billingSummary?.billingProfile?.paymentStatus || "—"}
+              </p>
+            </div>
+            <Button variant="outline" onClick={handlePortal} disabled={portalDisabled}>
+              Manage Payment Method
+            </Button>
+          </div>
+          {billingSummary?.payments?.length ? (
+            <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+              {billingSummary.payments.slice(0, 3).map((payment) => (
+                <div key={payment.id} className="flex items-center justify-between">
+                  <span>{format(new Date(payment.createdAt), "MMM d, yyyy")}</span>
+                  <span className="font-semibold">
+                    ${(payment.amountCents || 0) / 100} • {payment.status}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+
+        <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
+          <CollapsibleTrigger className="w-full flex items-center justify-between rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm font-semibold">
+            Advanced Dashboard (optional)
+            <span className="text-xs text-muted-foreground">{showAdvanced ? "Hide" : "Show"}</span>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              {/* Nutrition Card */}
+              <div className="card-premium flex flex-col h-full group">
+                <div className="space-y-6 flex-1">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-display font-bold text-2xl flex items-center gap-3">
+                      <Utensils className="w-6 h-6 text-primary" />
+                      Nutrition
+                    </h3>
+                    {currentNutritionPlan && (
+                      <span className="text-[10px] font-bold text-primary bg-primary/10 px-3 py-1 rounded-full uppercase tracking-widest border border-primary/20">Target Set</span>
+                    )}
+                  </div>
+
+                  {currentNutritionPlan ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+                        <p className="label-caps mb-2">Protein</p>
+                        <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.proteinG}g</p>
+                      </div>
+                      <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+                        <p className="label-caps mb-2">Carbs</p>
+                        <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.carbsG}g</p>
+                      </div>
+                      <div className="bg-white/[0.02] p-4 rounded-2xl border border-white/[0.03]">
+                        <p className="label-caps mb-2">Fats</p>
+                        <p className="text-2xl font-display font-bold leading-none">{currentNutritionPlan.fatsG}g</p>
+                      </div>
+                      <div className="bg-primary/10 p-4 rounded-2xl border border-primary/20">
+                        <p className="label-caps mb-2 text-primary">Calories</p>
+                        <p className="text-2xl font-display font-bold text-primary leading-none">
+                          {currentNutritionPlan.calories || (currentNutritionPlan.proteinG! * 4 + currentNutritionPlan.carbsG! * 4 + currentNutritionPlan.fatsG! * 9)}
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="py-8 bg-white/[0.02] rounded-2xl border border-white/[0.03] flex flex-col items-center justify-center text-center px-4">
+                      <Utensils className="w-10 h-10 text-white/10 mb-4" />
+                      <p className="text-sm font-bold text-white/40 uppercase tracking-widest">No Plan Assigned</p>
+                    </div>
+                  )}
+                </div>
+                {currentNutritionPlan && (
+                  <div className="mt-8 pt-6 border-t border-white/[0.05]">
+                    <Link href="/athlete/meal-plan">
+                      <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
+                        Full Protocol
+                        <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+
+              {/* Training Card */}
+              <div className="card-premium flex flex-col h-full group">
+                <div className="space-y-6 flex-1">
+                  <h3 className="font-display font-bold text-2xl flex items-center gap-3">
+                    <Activity className="w-6 h-6 text-primary" />
+                    Training
+                  </h3>
+
+                  <div className="bg-white/[0.02] rounded-2xl p-6 border border-white/[0.03] space-y-4">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="label-caps mb-2 opacity-60">Today's Focus</p>
+                        <p className="text-2xl font-display font-bold uppercase tracking-tight leading-none">
+                          {todaysPlan ? todaysPlan.focus || "Weights Session" : "Active Recovery"}
+                        </p>
+                      </div>
+                      {todaysPlan && <span className="label-caps opacity-40">{format(new Date(), 'EEE')}</span>}
+                    </div>
+                  </div>
+
+                  {todaysPlan && (
+                    <div className="mt-6">
+                      <label className={`flex items-center gap-4 rounded-2xl border p-5 transition-all cursor-pointer group/item ${todaysCompletion?.completed ? 'bg-primary/10 border-primary/30' : 'bg-white/[0.02] border-white/[0.05] hover:border-primary/50'}`}>
+                        <div className={`w-7 h-7 rounded-lg border-2 flex items-center justify-center transition-all ${todaysCompletion?.completed ? 'bg-primary border-primary' : 'border-white/20 group-hover/item:border-primary'}`}>
+                          {todaysCompletion?.completed && <ClipboardCheck className="w-5 h-5 text-ml-bg" />}
+                        </div>
+                        <input
+                          type="checkbox"
+                          className="hidden"
+                          checked={todaysCompletion?.completed || false}
+                          onChange={(event) => {
+                            if (!user) return;
+                            if (!todaysCompletion) {
+                              createCompletion.mutate({
+                                athleteId: user.id,
+                                dateKey: todayKey,
+                                dayKey: todayLabel,
+                                completed: event.target.checked,
+                              });
+                              return;
+                            }
+                            updateCompletion.mutate({
+                              id: todaysCompletion.id,
+                              completed: event.target.checked,
+                            });
+                          }}
+                        />
+                        <span className="text-sm font-bold uppercase tracking-widest">
+                          {todaysCompletion?.completed ? 'Completed' : 'Submit Done'}
+                        </span>
+                      </label>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-8 pt-6 border-t border-white/[0.05]">
+                  <Link href="/athlete/workout-plan">
+                    <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
+                      Full Library
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+
+              {/* Progress Card */}
+              <div className="card-premium flex flex-col h-full group">
+                <div className="space-y-6 flex-1">
+                  <h3 className="font-display font-bold text-2xl flex items-center gap-3">
+                    <BarChart3 className="w-6 h-6 text-primary" />
+                    Progress
+                  </h3>
+
+                  {last ? (
+                    <div className="space-y-4">
+                      {checkinConfig.summaryMetrics.map((key) => {
+                        const metric = checkinConfig.metrics.find((item) => item.key === key);
+                        return (
+                          <div key={key} className="flex items-center justify-between p-4 bg-white/[0.02] rounded-2xl border border-white/[0.03]">
+                            <span className="label-caps opacity-60">{metric?.label || key}</span>
+                            <span className="text-2xl font-display font-bold text-primary">
+                              {formatMetricValue(getCheckinMetricValue(last, key))}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="py-8 bg-white/[0.02] rounded-2xl border border-white/[0.03] flex flex-col items-center justify-center text-center px-4">
+                      <Activity className="w-10 h-10 text-white/10 mb-4" />
+                      <p className="text-sm font-bold text-white/40 uppercase tracking-widest">No Baseline Set</p>
+                    </div>
+                  )}
+                </div>
+                <div className="mt-8 pt-6 border-t border-white/[0.05]">
+                  <Link href="/athlete/history">
+                    <Button variant="ghost" className="w-full h-12 font-bold uppercase tracking-widest text-primary hover:bg-primary/5 rounded-xl flex items-center justify-between">
+                      Full History
+                      <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </div>
     </LayoutAthlete>
   );

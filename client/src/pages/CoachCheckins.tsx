@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { Redirect, Link } from "wouter";
 import LayoutCoach from "@/components/LayoutCoach";
+import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
 
 export default function CoachCheckins() {
   const { user } = useAuth();
@@ -51,7 +52,7 @@ export default function CoachCheckins() {
                   <div className="text-xs text-muted-foreground uppercase tracking-wide">Athlete</div>
                   <div className="text-lg font-semibold">{athlete?.displayName || athlete?.username || `Athlete ${checkin.athleteId}`}</div>
                   <div className="text-xs text-muted-foreground">
-                    {format(new Date(checkin.date), "MMM d, yyyy")} • {checkin.weight} lbs
+                    {format(new Date(checkin.date), "MMM d, yyyy")} • {formatMetricValue(getCheckinMetricValue(checkin, "weight"))}
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
