@@ -123,10 +123,28 @@ export class DatabaseStorage implements IStorage {
     const result = results[0];
     if (!result) return undefined;
 
+    const u = (result as any).user;
+    let hasCheckedIn = false;
+    let hasAthletesWithCheckin = false;
+
+    if (u.role === "athlete") {
+      const [checkin] = await db.select().from(checkins).where(eq(checkins.athleteId, u.id)).limit(1);
+      hasCheckedIn = !!checkin;
+    } else if (u.role === "coach") {
+      const coachAthletes = await db.select({ id: users.id }).from(users).where(eq(users.coachId, u.id));
+      const athleteIds = coachAthletes.map(a => a.id);
+      if (athleteIds.length > 0) {
+        const [anyCheckin] = await db.select().from(checkins).where(inArray(checkins.athleteId, athleteIds)).limit(1);
+        hasAthletesWithCheckin = !!anyCheckin;
+      }
+    }
+
     return {
-      ...(result as any).user,
-      effectiveIndustry: (result as any).user.role === "coach" ? (result as any).user.coachIndustry : (result as any).coachIndustry,
+      ...u,
+      effectiveIndustry: u.role === "coach" ? u.coachIndustry : (result as any).coachIndustry,
       coachBillingMode: (result as any).coachBillingMode,
+      hasCheckedIn,
+      hasAthletesWithCheckin,
     } as User;
   }
 
@@ -145,10 +163,28 @@ export class DatabaseStorage implements IStorage {
     const result = results[0];
     if (!result) return undefined;
 
+    const u = (result as any).user;
+    let hasCheckedIn = false;
+    let hasAthletesWithCheckin = false;
+
+    if (u.role === "athlete") {
+      const [checkin] = await db.select().from(checkins).where(eq(checkins.athleteId, u.id)).limit(1);
+      hasCheckedIn = !!checkin;
+    } else if (u.role === "coach") {
+      const coachAthletes = await db.select({ id: users.id }).from(users).where(eq(users.coachId, u.id));
+      const athleteIds = coachAthletes.map(a => a.id);
+      if (athleteIds.length > 0) {
+        const [anyCheckin] = await db.select().from(checkins).where(inArray(checkins.athleteId, athleteIds)).limit(1);
+        hasAthletesWithCheckin = !!anyCheckin;
+      }
+    }
+
     return {
-      ...(result as any).user,
-      effectiveIndustry: (result as any).user.role === "coach" ? (result as any).user.coachIndustry : (result as any).coachIndustry,
+      ...u,
+      effectiveIndustry: u.role === "coach" ? u.coachIndustry : (result as any).coachIndustry,
       coachBillingMode: (result as any).coachBillingMode,
+      hasCheckedIn,
+      hasAthletesWithCheckin,
     } as User;
   }
 

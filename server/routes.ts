@@ -99,7 +99,11 @@ export async function registerRoutes(
       if (existing) return res.status(400).json({ message: "Username exists" });
 
       const hashedPassword = await hashPassword(input.password);
-      const user = await storage.createUser({ ...input, password: hashedPassword });
+      const user = await storage.createUser({
+        ...input,
+        password: hashedPassword,
+        role: "coach" // Enforce coach role for all new registrations
+      });
 
       const token = signToken(user);
       const safeUser = await hydrateUser(user);
@@ -281,7 +285,6 @@ export async function registerRoutes(
       mealPlan: input.mealPlan,
       nextShowName: input.nextShowName,
       nextShowDate: input.nextShowDate,
-      currentPhase: input.currentPhase,
       profile: input.profile,
       paymentStatus: input.paymentStatus,
       locked: input.locked,
@@ -290,6 +293,17 @@ export async function registerRoutes(
       Object.entries(updates).filter(([, value]) => value !== undefined)
     );
     const updated = await storage.updateUser(athleteId, sanitizedUpdates);
+
+    // Sync with billing profile if status/locked changed
+    if (sanitizedUpdates.paymentStatus !== undefined || sanitizedUpdates.locked !== undefined) {
+      const profile = await storage.getBillingProfileByAthlete(athleteId);
+      if (profile) {
+        await storage.updateBillingProfile(profile.id, {
+          paymentStatus: sanitizedUpdates.paymentStatus as any,
+          locked: sanitizedUpdates.locked === true
+        });
+      }
+    }
     res.json(await hydrateUser(updated));
 
   });

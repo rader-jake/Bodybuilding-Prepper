@@ -7,7 +7,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Plus, Users, Search, AlertCircle, CheckCircle2, ChevronRight, CalendarDays, CreditCard } from "lucide-react";
+import { Plus, Users, Search, AlertCircle, CheckCircle2, ChevronRight, CalendarDays, CreditCard, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import { format, endOfWeek, isWithinInterval, startOfWeek } from "date-fns";
 import { Redirect, useLocation } from "wouter";
@@ -395,9 +395,17 @@ function AthleteCard({
                 <span className="text-[10px] font-bold uppercase tracking-wider">Pending</span>
               </div>
             ) : (
-              <div className="flex items-center gap-1.5 text-primary bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 shadow-lg shadow-primary/5">
-                <CheckCircle2 className="w-3 h-3" />
-                <span className="text-[10px] font-bold uppercase tracking-wider">Active</span>
+              <div className="flex flex-col items-end gap-2">
+                <div className="flex items-center gap-1.5 text-primary bg-primary/10 px-3 py-1.5 rounded-full border border-primary/20 shadow-lg shadow-primary/5">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">Active</span>
+                </div>
+                {billing?.locked && (
+                  <div className="flex items-center gap-1.5 text-red-500 bg-red-500/10 px-3 py-1.5 rounded-full border border-red-500/20 shadow-lg shadow-red-500/5">
+                    <ShieldAlert className="w-3 h-3" />
+                    <span className="text-[10px] font-bold uppercase tracking-wider">Locked</span>
+                  </div>
+                )}
               </div>
             )}
           </div>

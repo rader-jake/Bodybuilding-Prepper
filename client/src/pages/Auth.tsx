@@ -35,7 +35,7 @@ export default function AuthPage() {
           </div>
           <div className="space-y-1">
             <CardTitle className="text-3xl font-display uppercase tracking-tight">MetaLifts</CardTitle>
-            <CardDescription className="text-muted-foreground font-medium">Built for coaches who prep champions</CardDescription>
+            <CardDescription className="text-muted-foreground font-medium">Where coaches prep champions</CardDescription>
           </div>
         </CardHeader>
 
@@ -73,36 +73,17 @@ export default function AuthPage() {
             </TabsContent>
 
             <TabsContent value="register">
-              <Tabs defaultValue="athlete" className="w-full">
-                <TabsList className="grid w-full grid-cols-2 mb-6 bg-transparent">
-                  <TabsTrigger value="athlete" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20">Athlete</TabsTrigger>
-                  <TabsTrigger value="coach" className="data-[state=active]:bg-primary/10 data-[state=active]:text-primary border border-transparent data-[state=active]:border-primary/20">Coach</TabsTrigger>
-                </TabsList>
-
-                <TabsContent value="athlete">
-                  <form onSubmit={handleRegister('athlete')} className="space-y-4">
-                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30" />
-                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30" />
-                    <Button type="submit" className="w-full h-12 font-bold uppercase tracking-wider" disabled={isRegistering}>
-                      {isRegistering ? "Creating..." : "Join Team"}
-                    </Button>
-                  </form>
-                </TabsContent>
-
-                <TabsContent value="coach">
-                  <form onSubmit={handleRegister('coach')} className="space-y-4">
-                    <div className="p-3 mb-2 rounded bg-yellow-500/10 border border-yellow-500/20 flex gap-3">
-                      <ShieldCheck className="w-5 h-5 text-yellow-500 shrink-0" />
-                      <p className="text-xs text-yellow-200/80 leading-relaxed">Coach accounts have dashboard access to manage athletes.</p>
-                    </div>
-                    <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30" />
-                    <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30" />
-                    <Button type="submit" variant="outline" className="w-full h-12 font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary/10" disabled={isRegistering}>
-                      {isRegistering ? "Creating..." : "Create Coach Profile"}
-                    </Button>
-                  </form>
-                </TabsContent>
-              </Tabs>
+              <form onSubmit={handleRegister('coach')} className="space-y-4">
+                <div className="p-3 mb-2 rounded bg-yellow-500/10 border border-yellow-500/20 flex gap-3">
+                  <ShieldCheck className="w-5 h-5 text-yellow-500 shrink-0" />
+                  <p className="text-xs text-yellow-200/80 leading-relaxed">Coach accounts have dashboard access to manage athletes.</p>
+                </div>
+                <Input placeholder="Username" value={username} onChange={(e) => setUsername(e.target.value)} className="h-12 bg-secondary/30" />
+                <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} className="h-12 bg-secondary/30" />
+                <Button type="submit" variant="outline" className="w-full h-12 font-bold uppercase tracking-wider border-primary text-primary hover:bg-primary/10" disabled={isRegistering}>
+                  {isRegistering ? "Creating..." : "Create Coach Profile"}
+                </Button>
+              </form>
             </TabsContent>
           </Tabs>
         </CardContent>

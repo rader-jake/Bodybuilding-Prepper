@@ -2,7 +2,6 @@ import { useAuth } from "@/hooks/use-auth";
 import { useAthletes } from "@/hooks/use-athletes";
 import { useToast } from "@/hooks/use-toast";
 import { useCheckins } from "@/hooks/use-checkins";
-import { useHealthMarkers, useNutritionPlans, useProtocols, useTrainingBlocks, useWeeklyTrainingPlans, useTrainingCompletions } from "@/hooks/use-plans";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,19 +9,20 @@ import { Input } from "@/components/ui/input";
 import { ChevronLeft, Link as LinkIcon, HeartPulse, ShieldAlert, ClipboardList, Target, CalendarDays, MessageSquare } from "lucide-react";
 import { api } from "@shared/routes";
 import { useEffect, useState } from "react";
-import { format, differenceInDays } from "date-fns";
+import { format } from "date-fns";
 import { Redirect, useLocation, useRoute } from "wouter";
 import { POSE_KEYS } from "@/lib/poses";
 import { SPORT_CHECKIN_CONFIGS, SPORT_EVENT_LABELS, SPORT_LABELS, SPORT_PROFILE_CONFIGS, getSportTypeForUser } from "@/lib/sport-configs";
 import { formatMetricValue, getCheckinMetricValue } from "@/lib/checkin-utils";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import type { SportType } from "@shared/types";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/apiFetch";
 
 export default function CoachAthleteProfile() {
   const { user } = useAuth();
   const { athletes, isLoading, updateAthlete, deleteAthlete } = useAthletes();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, params] = useRoute("/dashboard/athletes/:id");
   const [, setLocation] = useLocation();
@@ -55,32 +55,13 @@ export default function CoachAthleteProfile() {
 
   const billingForAthlete = coachBilling?.perAthlete.find((row) => row.athleteId === athleteId);
   const { checkins } = useCheckins(athleteId);
-  const { trainingBlocks, createTrainingBlock } = useTrainingBlocks(athleteId);
-  const { weeklyPlans, createWeeklyPlan } = useWeeklyTrainingPlans(athleteId);
-  const { nutritionPlans, createNutritionPlan } = useNutritionPlans(athleteId);
-  const { protocols, createProtocol } = useProtocols(athleteId);
-  const { healthMarkers, createHealthMarker } = useHealthMarkers(athleteId);
   const todayKey = format(new Date(), "yyyy-MM-dd");
   const todayLabel = format(new Date(), "EEEE");
-  const { completions } = useTrainingCompletions(athleteId, todayKey);
 
   const [workoutPlanUrl, setWorkoutPlanUrl] = useState<string>(athlete?.workoutPlan || "");
   const [mealPlanUrl, setMealPlanUrl] = useState<string>(athlete?.mealPlan || "");
   const [isUploadingWorkout, setIsUploadingWorkout] = useState(false);
   const [isUploadingMeal, setIsUploadingMeal] = useState(false);
-  const [newBlockName, setNewBlockName] = useState("");
-  const [newBlockFocus, setNewBlockFocus] = useState("");
-  const [newBlockNotes, setNewBlockNotes] = useState("");
-  const [weeklyPlanText, setWeeklyPlanText] = useState("");
-  const [macroProtein, setMacroProtein] = useState("");
-  const [macroCarbs, setMacroCarbs] = useState("");
-  const [macroFats, setMacroFats] = useState("");
-  const [macroCalories, setMacroCalories] = useState("");
-  const [macroNotes, setMacroNotes] = useState("");
-  const [protocolType, setProtocolType] = useState<"supplement" | "compound">("supplement");
-  const [protocolName, setProtocolName] = useState("");
-  const [protocolDose, setProtocolDose] = useState("");
-  const [protocolFrequency, setProtocolFrequency] = useState("");
   const [healthRestingHr, setHealthRestingHr] = useState("");
   const [healthBpSys, setHealthBpSys] = useState("");
   const [healthBpDia, setHealthBpDia] = useState("");
@@ -94,7 +75,6 @@ export default function CoachAthleteProfile() {
   const [showDate, setShowDate] = useState(
     athlete?.nextShowDate ? format(new Date(athlete.nextShowDate), "yyyy-MM-dd") : ""
   );
-  const [phaseSelection, setPhaseSelection] = useState(athlete?.currentPhase || "off-season");
 
   useEffect(() => {
     if (athlete) {
@@ -102,7 +82,6 @@ export default function CoachAthleteProfile() {
       setMealPlanUrl(athlete.mealPlan || "");
       setShowName(athlete.nextShowName || "");
       setShowDate(athlete.nextShowDate ? format(new Date(athlete.nextShowDate), "yyyy-MM-dd") : "");
-      setPhaseSelection(athlete.currentPhase || "off-season");
       setProfileDraft((athlete.profile as Record<string, any>) || {});
     }
   }, [athlete]);
@@ -233,149 +212,24 @@ export default function CoachAthleteProfile() {
     toast({ title: "Price updated", description: "Applies on the next billing cycle." });
   };
 
-  const handleSavePhase = () => {
+  const handleToggleLock = () => {
+    const isLocking = !athlete.locked;
+    const action = isLocking ? "Lock" : "Unlock";
+    const confirmed = window.confirm(`${action} access for ${athlete.displayName || athlete.username}?`);
+    if (!confirmed) return;
+
     updateAthlete.mutate({
       id: athlete.id,
-      currentPhase: phaseSelection,
+      locked: isLocking,
+      paymentStatus: isLocking ? "waiting_for_coach" : "active",
+    }, {
+      onSuccess: () => {
+        // Force immediate refetch of all relevant data
+        queryClient.invalidateQueries({ queryKey: [api.athletes.list.path] });
+        queryClient.invalidateQueries({ queryKey: [api.billing.coachSummary.path] });
+        toast({ title: `Access ${isLocking ? "Locked" : "Restored"}`, description: `${athlete.displayName || athlete.username} has been ${isLocking ? "locked out" : "unlocked"}.` });
+      }
     });
-  };
-
-  const currentBlock = trainingBlocks?.[0];
-  const currentWeeklyPlan = weeklyPlans?.[0];
-  const currentNutritionPlan = nutritionPlans?.[0];
-  const todaysPlan = (currentWeeklyPlan?.planJson as { days?: Array<{ day: string; focus?: string }> })?.days
-    ?.find((day) => day.day?.toLowerCase() === todayLabel.toLowerCase());
-  const todaysCompletion = completions?.find((item) => item.dayKey === todayLabel);
-  const activeProtocols = protocols?.filter((item) => !item.endDate) || [];
-  const pastProtocols = protocols?.filter((item) => item.endDate) || [];
-  const latestCheckin = checkins?.[0];
-  const previousCheckin = checkins?.[1];
-  const latestWeightRaw = latestCheckin ? Number(getCheckinMetricValue(latestCheckin, "weight")) : null;
-  const previousWeightRaw = previousCheckin ? Number(getCheckinMetricValue(previousCheckin, "weight")) : null;
-  const latestWeight = Number.isFinite(latestWeightRaw) ? latestWeightRaw : null;
-  const previousWeight = Number.isFinite(previousWeightRaw) ? previousWeightRaw : null;
-  const weightChangePct = latestWeight && previousWeight ? ((latestWeight - previousWeight) / previousWeight) * 100 : null;
-  const flags: string[] = [];
-  const ratingPoses = ["front_relaxed", "back_double_biceps"];
-
-  // Calculate specific trends based on sport
-  const poseTrends = sportType === 'bodybuilding' ? ratingPoses.map((poseKey) => {
-    const ratings = (checkins || [])
-      .map((checkin) => checkin.poseRatings?.[poseKey])
-      .filter((rating) => typeof rating === "number") as number[];
-    if (ratings.length < 2) return null;
-    return { poseKey, start: ratings[ratings.length - 1], end: ratings[0] };
-  }).filter(Boolean) as Array<{ poseKey: string; start: number; end: number }> : [];
-
-  const metricTrends = sportType !== 'bodybuilding' && checkins?.length && checkins.length > 1
-    ? checkinConfig.metrics
-      .filter((metric) => metric.type === "number" || metric.type === "rating")
-      .slice(0, 3)
-      .map((metric) => {
-        const latestInfo = getCheckinMetricValue(checkins[0], metric.key);
-        const prevInfo = getCheckinMetricValue(checkins[checkins.length - 1], metric.key);
-        if (latestInfo === undefined || prevInfo === undefined) return null;
-        return { label: metric.label, start: prevInfo, end: latestInfo };
-      })
-      .filter(Boolean)
-    : [];
-
-  if (weightChangePct && Math.abs(weightChangePct) > 1) {
-    flags.push(`Weight change ${weightChangePct.toFixed(1)}%`);
-  }
-  if (checkins && checkins.length === 0) {
-    flags.push("No check-ins yet");
-  }
-  if (latestCheckin && differenceInDays(new Date(), new Date(latestCheckin.date)) > 10) {
-    flags.push("Check-in overdue");
-  }
-  if (healthMarkers && healthMarkers.length >= 2) {
-    const [latestMarker, prevMarker] = healthMarkers;
-    if (latestMarker.restingHr && prevMarker.restingHr && latestMarker.restingHr > prevMarker.restingHr + 5) {
-      flags.push("Resting HR trending up");
-    }
-  }
-
-  const handleCreateBlock = () => {
-    if (!newBlockName) return;
-    createTrainingBlock.mutate({
-      athleteId,
-      name: newBlockName,
-      focus: newBlockFocus || null,
-      notes: newBlockNotes || null,
-      phase: athlete.currentPhase || null,
-    });
-    setNewBlockName("");
-    setNewBlockFocus("");
-    setNewBlockNotes("");
-  };
-
-  const handleCreateWeeklyPlan = () => {
-    if (!currentBlock || !weeklyPlanText) return;
-    const planJson = {
-      days: weeklyPlanText
-        .split("\n")
-        .filter(Boolean)
-        .map((line) => {
-          const [day, focus, notes] = line.split("|").map((part) => part.trim());
-          return { day, focus, notes };
-        }),
-    };
-    createWeeklyPlan.mutate({
-      trainingBlockId: currentBlock.id,
-      weekStartDate: new Date(),
-      planJson,
-    });
-    setWeeklyPlanText("");
-  };
-
-  const handleCreateNutritionPlan = () => {
-    createNutritionPlan.mutate({
-      athleteId,
-      phase: athlete.currentPhase || null,
-      weekStartDate: new Date(),
-      proteinG: macroProtein ? Number(macroProtein) : null,
-      carbsG: macroCarbs ? Number(macroCarbs) : null,
-      fatsG: macroFats ? Number(macroFats) : null,
-      calories: macroCalories ? Number(macroCalories) : null,
-      notes: macroNotes || null,
-    });
-    setMacroProtein("");
-    setMacroCarbs("");
-    setMacroFats("");
-    setMacroCalories("");
-    setMacroNotes("");
-  };
-
-  const handleCreateProtocol = () => {
-    if (!protocolName) return;
-    createProtocol.mutate({
-      athleteId,
-      type: protocolType,
-      name: protocolName,
-      dose: protocolDose || null,
-      frequency: protocolFrequency || null,
-      startDate: new Date(),
-    });
-    setProtocolName("");
-    setProtocolDose("");
-    setProtocolFrequency("");
-  };
-
-  const handleCreateHealthMarker = () => {
-    createHealthMarker.mutate({
-      athleteId,
-      restingHr: healthRestingHr ? Number(healthRestingHr) : null,
-      bloodPressureSystolic: healthBpSys ? Number(healthBpSys) : null,
-      bloodPressureDiastolic: healthBpDia ? Number(healthBpDia) : null,
-      subjectiveHealth: healthScore ? Number(healthScore) : null,
-      notes: healthNotes || null,
-    });
-    setHealthRestingHr("");
-    setHealthBpSys("");
-    setHealthBpDia("");
-    setHealthScore("");
-    setHealthNotes("");
   };
 
   return (
@@ -392,6 +246,25 @@ export default function CoachAthleteProfile() {
 
       <div className="flex-1 min-h-0 overflow-y-auto scroll-y" style={{ WebkitOverflowScrolling: "touch" }}>
         <main className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8 pb-20">
+          {athlete.locked && (
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4 animate-in fade-in slide-in-from-top-4 duration-500">
+              <div className="flex items-center gap-3">
+                <ShieldAlert className="w-5 h-5 text-red-500" />
+                <div>
+                  <p className="text-sm font-bold text-red-500 uppercase tracking-tight">Athlete Access Locked</p>
+                  <p className="text-xs text-red-500/70">This athlete is currently locked out of their account due to Billing/Payment status ({athlete.paymentStatus}).</p>
+                </div>
+              </div>
+              <Button
+                size="sm"
+                className="bg-red-500 hover:bg-red-600 text-white font-bold uppercase tracking-widest text-[10px]"
+                onClick={handleToggleLock}
+              >
+                Unlock Access Now
+              </Button>
+            </div>
+          )}
+
           {/* Header & Basic Info */}
           <section className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
@@ -404,7 +277,6 @@ export default function CoachAthleteProfile() {
               <div>
                 <h1 className="text-4xl font-display font-bold tracking-tight uppercase">{athlete.displayName || athlete.username}</h1>
                 <div className="flex items-center gap-3 mt-1">
-                  <span className="text-xs font-bold uppercase tracking-widest text-primary px-2 py-1 bg-primary/10 rounded">{athlete.currentPhase || "Off-season"}</span>
                   <span className="text-xs font-medium text-muted-foreground uppercase tracking-widest">{SPORT_LABELS[sportType]}</span>
                 </div>
               </div>
@@ -435,24 +307,6 @@ export default function CoachAthleteProfile() {
                     <div className="space-y-2">
                       <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Next {SPORT_EVENT_LABELS[sportType]} Date</label>
                       <Input type="date" value={showDate} onChange={(e) => setShowDate(e.target.value)} />
-                    </div>
-
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-bold uppercase text-muted-foreground tracking-widest">Current Phase</label>
-                      <select
-                        className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-                        value={phaseSelection}
-                        onChange={(event) => setPhaseSelection(event.target.value as any)}
-                        onBlur={handleSavePhase}
-                      >
-                        <option value="off-season">Off-season</option>
-                        <option value="bulking">Bulking</option>
-                        <option value="cutting">Cutting</option>
-                        <option value="maintenance">Maintenance</option>
-                        <option value="prep">Prep</option>
-                        <option value="peak week">Peak week</option>
-                        <option value="post-show">Post-show</option>
-                      </select>
                     </div>
 
                     {profileConfig.fields.filter(f => f.key !== 'nextShowDate').map((field) => (
@@ -572,11 +426,23 @@ export default function CoachAthleteProfile() {
               <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 opacity-60 hover:opacity-100 transition-opacity">
                 <Card>
                   <CardContent className="p-6 space-y-4">
-                    <h2 className="text-lg font-bold">Billing (Labs)</h2>
+                    <div className="flex items-center justify-between">
+                      <h2 className="text-lg font-bold">Billing (Labs)</h2>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={`h-7 text-[10px] font-bold uppercase tracking-tighter border-2 ${athlete.locked ? "bg-green-500/10 text-green-500 border-green-500/20 hover:bg-green-500/20" : "bg-red-500/10 text-red-500 border-red-500/20 hover:bg-red-500/20"}`}
+                        onClick={handleToggleLock}
+                      >
+                        {athlete.locked ? "Unlock Access" : "Lock Access"}
+                      </Button>
+                    </div>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center justify-between">
                         <span className="text-muted-foreground">Status</span>
-                        <span className="font-semibold">{billingForAthlete?.paymentStatus || "—"}</span>
+                        <span className={`font-semibold ${athlete.locked ? "text-red-500" : "text-green-500"}`}>
+                          {athlete.paymentStatus || "—"} {athlete.locked ? "(Locked)" : "(Active)"}
+                        </span>
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -608,22 +474,6 @@ export default function CoachAthleteProfile() {
                 </Card>
               </section>
 
-              {/* Training Blocks, Protocols, Health - keeping for now but deeply buried */}
-              <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 opacity-40 hover:opacity-100 transition-opacity">
-                <Card className="lg:col-span-2">
-                  <CardContent className="p-6 space-y-6">
-                    <h2 className="text-lg font-bold">Training Blocks</h2>
-                    {/* ... (re-add existing block logic if needed, but for simplicity let's keep it minimal) */}
-                    <p className="text-xs text-muted-foreground">Training block management moved to experimental view.</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-6 space-y-6">
-                    <h2 className="text-lg font-bold">Health & Protocols</h2>
-                    <p className="text-xs text-muted-foreground">Health tracking moved to experimental view.</p>
-                  </CardContent>
-                </Card>
-              </section>
 
               <section className="border border-destructive/30 rounded-xl p-6 bg-destructive/5 space-y-4">
                 <div>

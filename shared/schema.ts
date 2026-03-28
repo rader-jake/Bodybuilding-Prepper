@@ -14,7 +14,6 @@ export const users = pgTable("users", {
   avatarUrl: text("avatar_url"),
   bio: text("bio"),
   timezone: text("timezone"),
-  currentPhase: text("current_phase", { enum: ["off-season", "bulking", "cutting", "maintenance", "prep", "peak week", "post-show"] }).default("off-season"),
   nextShowName: text("next_show_name"),
   nextShowDate: timestamp("next_show_date"),
   workoutPlan: text("workout_plan"), // Placeholder for now
@@ -227,6 +226,8 @@ export const insertMessageSchema = createInsertSchema(messages).omit({ id: true,
 export type User = typeof users.$inferSelect & {
   effectiveIndustry?: string | null;
   coachBillingMode?: string | null;
+  hasCheckedIn?: boolean;
+  hasAthletesWithCheckin?: boolean;
 };
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type Checkin = typeof checkins.$inferSelect;

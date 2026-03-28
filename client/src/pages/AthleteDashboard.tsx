@@ -107,10 +107,6 @@ export default function AthleteDashboard() {
           <div className="relative z-10 flex flex-col md:items-center md:flex-row justify-between gap-8">
             <div className="space-y-4">
               <div className="flex items-center gap-3">
-                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-[10px] font-bold uppercase tracking-[0.2em] border border-primary/20">
-                  {user?.currentPhase || "Pre-Season"}
-                </span>
-                <span className="label-caps opacity-60">Phase</span>
               </div>
               <h2 className="text-4xl sm:text-5xl font-display font-bold tracking-tight leading-none">
                 Welcome, <span className="text-primary">{user?.displayName || user?.username}</span>
@@ -176,41 +172,40 @@ export default function AthleteDashboard() {
           </div>
         </div>
 
-        <div className="card-premium p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <p className="text-xs uppercase tracking-widest text-muted-foreground">Billing</p>
-              <p className="text-lg font-bold">
-                ${((billingSummary?.billingProfile?.currentAmountCents || 0) / 100).toFixed(0)} / month
-              </p>
-              <p className="text-xs text-muted-foreground">
-                Status: {billingSummary?.billingProfile?.paymentStatus || "—"}
-              </p>
-            </div>
-            <Button variant="outline" onClick={handlePortal} disabled={portalDisabled}>
-              Manage Payment Method
-            </Button>
-          </div>
-          {billingSummary?.payments?.length ? (
-            <div className="mt-4 space-y-2 text-xs text-muted-foreground">
-              {billingSummary.payments.slice(0, 3).map((payment) => (
-                <div key={payment.id} className="flex items-center justify-between">
-                  <span>{format(new Date(payment.createdAt), "MMM d, yyyy")}</span>
-                  <span className="font-semibold">
-                    ${(payment.amountCents || 0) / 100} • {payment.status}
-                  </span>
-                </div>
-              ))}
-            </div>
-          ) : null}
-        </div>
-
         <Collapsible open={showAdvanced} onOpenChange={setShowAdvanced}>
           <CollapsibleTrigger className="w-full flex items-center justify-between rounded-xl border border-border bg-secondary/20 px-4 py-3 text-sm font-semibold">
             Advanced Dashboard (optional)
             <span className="text-xs text-muted-foreground">{showAdvanced ? "Hide" : "Show"}</span>
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-6">
+          <CollapsibleContent className="mt-6 space-y-8">
+            <div className="card-premium p-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div>
+                  <p className="text-xs uppercase tracking-widest text-muted-foreground">Billing</p>
+                  <p className="text-lg font-bold">
+                    ${((billingSummary?.billingProfile?.currentAmountCents || 0) / 100).toFixed(0)} / month
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Status: {billingSummary?.billingProfile?.paymentStatus || "—"}
+                  </p>
+                </div>
+                <Button variant="outline" onClick={handlePortal} disabled={portalDisabled} className="backdrop-blur-sm border-white/10 hover:bg-white/5 rounded-full">
+                  Manage Payment Method
+                </Button>
+              </div>
+              {billingSummary?.payments?.length ? (
+                <div className="mt-4 space-y-2 text-xs text-muted-foreground">
+                  {billingSummary.payments.slice(0, 3).map((payment) => (
+                    <div key={payment.id} className="flex items-center justify-between">
+                      <span>{format(new Date(payment.createdAt), "MMM d, yyyy")}</span>
+                      <span className="font-semibold">
+                        ${(payment.amountCents || 0) / 100} • {payment.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Nutrition Card */}
               <div className="card-premium flex flex-col h-full group">

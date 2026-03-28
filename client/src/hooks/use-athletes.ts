@@ -43,6 +43,7 @@ export function useAthletes() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [api.athletes.list.path] });
+      queryClient.invalidateQueries({ queryKey: [api.billing.coachSummary.path] });
       toast({ title: "Saved", description: "Plan links updated" });
     },
     onError: (error: Error) => {

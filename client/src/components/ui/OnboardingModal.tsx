@@ -28,7 +28,11 @@ export function OnboardingModal() {
         const timer = setTimeout(() => {
             const key = `${PREFERENCES_KEYS.HAS_SEEN_ONBOARDING}_${user.id}`;
             const hasSeen = preferences.get(key);
-            if (!hasSeen) {
+
+            // Only show if never seen AND truly a first-time user (no check-ins yet)
+            const isFirstLogin = user.role === 'athlete' ? !user.hasCheckedIn : !user.hasAthletesWithCheckin;
+
+            if (!hasSeen && isFirstLogin) {
                 setOpen(true);
             }
         }, 1500);
